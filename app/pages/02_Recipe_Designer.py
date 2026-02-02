@@ -55,16 +55,22 @@ with st.sidebar:
     st.info("Adjust parameters to see estimated 28d Strength.")
 
 # Navigation State
-if "main_nav" not in st.session_state:
-    st.session_state.main_nav = "📊 Dashboard"
+if "active_tab_index" not in st.session_state:
+    st.session_state.active_tab_index = 0
 
+options = ["📊 Dashboard", "➕ Designer & Calculator", "📚 Recipe Library"]
+
+# Navigation Bar
 selected_tab = st.radio("Navigation", 
-                        ["📊 Dashboard", "➕ Designer & Calculator", "📚 Recipe Library"], 
+                        options, 
+                        index=st.session_state.active_tab_index,
                         horizontal=True,
-                        label_visibility="collapsed",
-                        key="main_nav")
+                        label_visibility="collapsed")
 
-# Map selection to variables for backward compatibility (logical check instead of context manager)
+# Store selected tab back to index for persistence across page changes
+st.session_state.active_tab_index = options.index(selected_tab)
+
+# Map selection to variables
 is_dash = selected_tab == "📊 Dashboard"
 is_designer = selected_tab == "➕ Designer & Calculator"
 is_library = selected_tab == "📚 Recipe Library"
@@ -435,7 +441,7 @@ if is_library:
                     
                     if c_edit.button("✏️ Edit This Recipe"):
                         st.session_state.edit_recipe_id = selected_id
-                        st.session_state.main_nav = "➕ Designer & Calculator"
+                        st.session_state.active_tab_index = 1 # Switch to Designer
                         st.rerun()
                         
                     if c_del.button("🗑️ Delete This Recipe", type="primary"):
