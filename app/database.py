@@ -45,4 +45,6 @@ def init_db():
                 conn.execute(text("ALTER TABLE recipes ADD COLUMN si_stock_batch_id VARCHAR"))
             if "material_sources" not in cols:
                 conn.execute(text("ALTER TABLE recipes ADD COLUMN material_sources JSON"))
+            if "target_ph" not in cols:
+                conn.execute(text("ALTER TABLE recipes ADD COLUMN target_ph FLOAT"))
             conn.commit()

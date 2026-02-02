@@ -48,6 +48,7 @@ class Recipe(Base):
     # Process Config
     ca_addition_rate = Column(Float) # mL/min
     si_addition_rate = Column(Float) # mL/min
+    target_ph = Column(Float)
     
     # Process Config (stored as JSON for flexibility in step definitions)
     # Example: {"feeding_sequence": [{"step": "A", "duration": 10}], "rate": 5.0}

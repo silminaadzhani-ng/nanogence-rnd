@@ -120,9 +120,10 @@ with st.form("recipe_form"):
 
         st.divider()
         st.subheader("Process Parameters")
-        c1, c2 = st.columns(2)
+        c1, c2, c3 = st.columns(3)
         rate_ca = c1.number_input("Ca Addition Rate (mL/min)", value=0.5)
         rate_si = c2.number_input("Si Addition Rate (mL/min)", value=0.5)
+        target_ph = c3.number_input("Target pH", value=11.5, step=0.1)
         
         st.caption("Synthesis Procedure")
         procedure_notes = st.text_area("Procedure Notes", placeholder="e.g. 1. Dissolve PCX...\n2. Start feeding...", height=150)
@@ -157,6 +158,7 @@ with st.form("recipe_form"):
                     material_sources=sources,
                     ca_addition_rate=rate_ca,
                     si_addition_rate=rate_si,
+                    target_ph=target_ph,
                     ca_stock_batch_id=ca_opts.get(ca_batch_id),
                     si_stock_batch_id=si_opts.get(si_batch_id),
                     process_config=proc_config,
