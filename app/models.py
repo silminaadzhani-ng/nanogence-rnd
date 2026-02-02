@@ -7,6 +7,7 @@ from .database import Base
 
 class RawMaterial(Base):
     __tablename__ = "raw_materials"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     material_name = Column(String, index=True) # e.g. Ca(NO3)2·4H2O
@@ -24,6 +25,7 @@ class RawMaterial(Base):
 
 class StockSolutionBatch(Base):
     __tablename__ = "stock_solution_batches"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     code = Column(String, unique=True, index=True) # e.g. CA-20240101-01
@@ -46,6 +48,7 @@ class StockSolutionBatch(Base):
 
 class Recipe(Base):
     __tablename__ = "recipes"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String, index=True)
@@ -88,6 +91,7 @@ class Recipe(Base):
 
 class SynthesisBatch(Base):
     __tablename__ = "synthesis_batches"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     recipe_id = Column(UUID(as_uuid=True), ForeignKey('recipes.id'))
@@ -102,6 +106,7 @@ class SynthesisBatch(Base):
 
 class QCMeasurement(Base):
     __tablename__ = "qc_measurements"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     batch_id = Column(UUID(as_uuid=True), ForeignKey('synthesis_batches.id'))
@@ -154,6 +159,7 @@ class QCMeasurement(Base):
 
 class PerformanceTest(Base):
     __tablename__ = "performance_tests"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     batch_id = Column(UUID(as_uuid=True), ForeignKey('synthesis_batches.id'))
