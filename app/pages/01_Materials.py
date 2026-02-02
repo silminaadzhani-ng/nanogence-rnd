@@ -94,7 +94,7 @@ with tab1:
             use_container_width=True, 
             hide_index=True,
             on_select="rerun",
-            selection_mode="single_row"
+            selection_mode="single-row"
         )
         
         # Check if a row is selected
@@ -200,7 +200,7 @@ with tab2:
                 use_container_width=True, 
                 hide_index=True,
                 on_select="rerun",
-                selection_mode="single_row",
+                selection_mode="single-row",
                 key="df_ss"
             )
             
