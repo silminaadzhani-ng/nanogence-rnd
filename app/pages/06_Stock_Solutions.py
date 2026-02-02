@@ -1,8 +1,12 @@
 import streamlit as st
 import datetime
 from sqlalchemy.orm import Session
-from app.database import get_db
+from app.database import get_db, engine, Base
 from app.models import StockSolutionBatch
+import app.models
+
+# Robustness: Ensure tables exist if accessing page directly
+Base.metadata.create_all(bind=engine)
 
 st.set_page_config(page_title="Stock Solutions", page_icon="🧪", layout="wide")
 

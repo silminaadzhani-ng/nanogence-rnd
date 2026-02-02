@@ -3,9 +3,15 @@ import sys
 import os
 
 # Ensure the project root is in sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if root_path not in sys.path:
+    sys.path.append(root_path)
 
-st.set_page_config(
+from app.database import engine, Base
+import app.models # Ensure models are registered
+
+# Ensure tables exist
+Base.metadata.create_all(bind=engine)
     page_title="Nanogence R&D Platform",
     page_icon="🧪",
     layout="wide",
