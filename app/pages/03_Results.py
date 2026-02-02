@@ -42,8 +42,6 @@ with tab1:
                 "Settling": qc.settling_height,
                 "V-d50 (Bef)": qc.psd_before_v_d50,
                 "V-d50 (Aft)": qc.psd_after_v_d50,
-                "Agg Vol": qc.agglom_vol,
-                "Agg SSA": qc.agglom_ssa,
                 "Ref": qc.batch.lab_notebook_ref if qc.batch else "N/A"
             })
         
@@ -117,12 +115,6 @@ with tab3:
                 key="psd_editor"
             )
 
-            st.markdown("#### 3. Factors")
-            f1, f2, f3 = st.columns(3)
-            agg_v = f1.number_input("Agglom. Factor (Vol)", value=1.0)
-            agg_n = f2.number_input("Agglom. Factor (Num)", value=1.0)
-            agg_ssa = f3.number_input("Agglom. Factor (SSA)", value=1.0)
-
             if st.form_submit_button("✅ Save Characterization"):
                 try:
                     # Extract from edited_psd
@@ -156,11 +148,7 @@ with tab3:
                         psd_after_n_d10=edited_psd.at["d10 (µm)", "Number (After)"],
                         psd_after_n_d50=edited_psd.at["d50 (µm)", "Number (After)"],
                         psd_after_n_d90=edited_psd.at["d90 (µm)", "Number (After)"],
-                        psd_after_n_mean=edited_psd.at["Mean (µm)", "Number (After)"],
-
-                        agglom_vol=agg_v,
-                        agglom_num=agg_n,
-                        agglom_ssa=agg_ssa
+                        psd_after_n_mean=edited_psd.at["Mean (µm)", "Number (After)"]
                     )
                     db.add(qc)
                     db.commit()
