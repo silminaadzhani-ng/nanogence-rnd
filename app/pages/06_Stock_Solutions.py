@@ -28,6 +28,8 @@ with tab1:
     col1, col2 = st.columns(2)
     
     with col1:
+        prep_date = st.date_input("Preparation Date", value=datetime.date.today())
+        
         chem_options = list(CHEMICALS.keys()) + ["Other (Custom)"]
         selected_chem = st.selectbox("Chemical", options=chem_options)
         
@@ -54,8 +56,8 @@ with tab1:
         
     with col2:
         # Automated Batch Code Logic
-        today_str = datetime.date.today().strftime("%Y%m%d")
-        prefix = f"{chem_type[:2].upper()}-{today_str}-"
+        date_str = prep_date.strftime("%Y%m%d")
+        prefix = f"{chem_type[:2].upper()}-{date_str}-"
         
         # Search for existing batches today to get count
         count = db.query(StockSolutionBatch).filter(StockSolutionBatch.code.like(f"{prefix}%")).count()
@@ -78,6 +80,7 @@ with tab1:
                     molarity=target_m,
                     target_volume_ml=target_v,
                     actual_mass_g=actual_mass,
+                    preparation_date=datetime.datetime.combine(prep_date, datetime.time.min),
                     operator=operator,
                     notes=notes
                 )
@@ -100,7 +103,7 @@ with tab2:
                 "Molarity": b.molarity,
                 "Volume (mL)": b.target_volume_ml,
                 "Mass (g)": b.actual_mass_g,
-                "Date": b.created_at.strftime("%Y-%m-%d"),
+                "Prep Date": b.preparation_date.strftime("%Y-%m-%d") if b.preparation_date else "N/A",
                 "Operator": b.operator
             })
         st.dataframe(data, use_container_width=True)

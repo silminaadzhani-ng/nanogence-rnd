@@ -48,3 +48,10 @@ def init_db():
             if "target_ph" not in cols:
                 conn.execute(text("ALTER TABLE recipes ADD COLUMN target_ph FLOAT"))
             conn.commit()
+
+    if "stock_solution_batches" in inspector.get_table_names():
+        cols = [c["name"] for c in inspector.get_columns("stock_solution_batches")]
+        with engine.connect() as conn:
+            if "preparation_date" not in cols:
+                conn.execute(text("ALTER TABLE stock_solution_batches ADD COLUMN preparation_date DATETIME"))
+            conn.commit()

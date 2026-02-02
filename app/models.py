@@ -15,6 +15,7 @@ class StockSolutionBatch(Base):
     target_volume_ml = Column(Float)
     actual_mass_g = Column(Float)
     operator = Column(String)
+    preparation_date = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
     notes = Column(String)
 
