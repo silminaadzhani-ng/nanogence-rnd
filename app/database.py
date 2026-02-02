@@ -45,6 +45,7 @@ def init_db():
         add_column_if_missing("recipes", "si_stock_batch_id", "VARCHAR")
         add_column_if_missing("recipes", "material_sources", "JSON")
         add_column_if_missing("recipes", "target_ph", "FLOAT")
+        add_column_if_missing("recipes", "code", "VARCHAR")
 
     if "stock_solution_batches" in inspector.get_table_names():
         add_column_if_missing("stock_solution_batches", "preparation_date", "DATETIME")
