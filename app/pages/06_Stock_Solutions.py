@@ -36,7 +36,16 @@ with tab1:
         st.metric("Required Mass (g)", f"{required_mass:.2f} g")
         
     with col2:
-        batch_code = st.text_input("Batch Code", placeholder="e.g. CA-20240202-01")
+        # Automated Batch Code Logic
+        today_str = datetime.date.today().strftime("%Y%m%d")
+        chem_type = CHEMICALS[chem_key]["type"]
+        prefix = f"{chem_type}-{today_str}-"
+        
+        # Search for existing batches today to get count
+        count = db.query(StockSolutionBatch).filter(StockSolutionBatch.code.like(f"{prefix}%")).count()
+        suggested_code = f"{prefix}{count + 1:02d}"
+        
+        batch_code = st.text_input("Batch Code", value=suggested_code)
         actual_mass = st.number_input("Actual Mass Weighed (g)", step=0.01, value=required_mass)
         operator = st.text_input("Operator", value="Silmina Adzhani")
         notes = st.text_area("Notes")
