@@ -59,9 +59,10 @@ with tab1:
                 "Trial #": trial_name,
                 "pH": qc.ph,
                 "Solids %": qc.solid_content_measured,
-                "Settling": qc.settling_height,
+                "Age (h)": f"{qc.ageing_time:.1f}" if qc.ageing_time else "0.0",
                 "V-d50 (Bef)": qc.psd_before_v_d50,
                 "V-d50 (Aft)": qc.psd_after_v_d50,
+                "Measured At": qc.measured_at.strftime("%Y-%m-%d %H:%M") if qc.measured_at else "N/A",
                 "Ref": qc.batch.lab_notebook_ref if qc.batch else "N/A"
             })
         
@@ -70,32 +71,29 @@ with tab1:
     else:
         st.info("No experimental results recorded yet.")
 
-# --- Record Characterization Tab (New Workflow) ---
+# --- Record Characterization Tab ---
 with tab2:
     st.subheader("1. Select Recipe from Library")
     
-    # Show Recipe Table
     recipes = db.query(Recipe).order_by(Recipe.name.asc()).all()
     recipe_table_data = []
     for r in recipes:
         recipe_table_data.append({
             "ID": str(r.id),
             "Name": r.name,
-            "Ca/Si": r.ca_si_ratio,
-            "Solids %": r.total_solid_content,
-            "Created": r.recipe_date.strftime("%Y-%m-%d") if r.recipe_date else "N/A"
+            "Created": r.recipe_date.strftime("%Y-%m-%d %H:%M") if r.recipe_date else "N/A",
+            "Recipe_Date_Obj": r.recipe_date
         })
     
     df_recipes = pd.DataFrame(recipe_table_data)
     
-    # Use st.dataframe for selection
     recipe_selection = st.dataframe(
         df_recipes,
         use_container_width=True,
         hide_index=True,
         on_select="rerun",
         selection_mode="single-row",
-        column_order=["Name", "Ca/Si", "Solids %", "Created"]
+        column_order=["Name", "Created"]
     )
     
     selected_indices = recipe_selection.selection.rows
@@ -104,17 +102,34 @@ with tab2:
         idx = selected_indices[0]
         sel_recipe_id = recipe_table_data[idx]["ID"]
         sel_recipe_name = recipe_table_data[idx]["Name"]
+        sel_recipe_date = recipe_table_data[idx]["Recipe_Date_Obj"]
         
-        st.success(f"Selected: **{sel_recipe_name}**")
+        st.success(f"Selected Recipe: **{sel_recipe_name}** (Created: {sel_recipe_date.strftime('%Y-%m-%d %H:%M') if sel_recipe_date else 'N/A'})")
         
         st.divider()
-        st.subheader("2. Batch Reference & QC Entry")
+        st.subheader("2. Measurement Timeline & QC Entry")
         
         with st.form("characterization_form"):
-            col_a, col_b = st.columns(2)
-            batch_ref = col_a.text_input("Notebook / Lab Reference", value=f"NB-{sel_recipe_name}-{datetime.date.today().strftime('%Y%m%d')}")
-            operator = col_b.text_input("Operator Name", value="Silmina Adzhani")
+            c_meta1, c_meta2 = st.columns(2)
+            batch_ref = c_meta1.text_input("Notebook / Lab Reference", value=f"NB-{sel_recipe_name}")
+            operator = c_meta2.text_input("Operator Name", value="Silmina Adzhani")
             
+            c_time1, c_time2 = st.columns(2)
+            m_date = c_time1.date_input("Measurement Date", value=datetime.date.today())
+            m_time = c_time2.time_input("Measurement Time", value=datetime.datetime.now().time())
+            
+            # Combine into timestamp
+            measurement_ts = datetime.datetime.combine(m_date, m_time)
+            
+            # Calculate Age relative to Recipe Creation (as requested: "from the recipe creation")
+            # Although scientific age is usually from synthesis, user asked for recipe creation.
+            age_h = 0.0
+            if sel_recipe_date:
+                diff = measurement_ts - sel_recipe_date
+                age_h = diff.total_seconds() / 3600.0
+            
+            st.info(f"💡 Calculated Age: **{age_h:.1f} hours** since recipe creation.")
+
             st.markdown("#### General Properties")
             c1, c2, c3 = st.columns(3)
             final_ph = c1.number_input("Final pH", value=11.50)
@@ -122,21 +137,18 @@ with tab2:
             settling = c3.number_input("Settling Height (mm)", value=0.0)
 
             st.markdown("#### Particle Size Analysis (PSD)")
-            st.caption("Enter values in the grid below:")
-            
             psd_rows = ["d10 (µm)", "d50 (µm)", "d90 (µm)", "Mean (µm)", "SSA (m²/cm³)"]
             psd_cols = ["Volume (Before)", "Number (Before)", "Volume (After)", "Number (After)"]
             psd_init_df = pd.DataFrame(0.0, index=psd_rows, columns=psd_cols)
-            
-            edited_psd = st.data_editor(psd_init_df, use_container_width=True, key="psd_editor_new")
+            edited_psd = st.data_editor(psd_init_df, use_container_width=True, key="psd_editor_age")
 
-            if st.form_submit_button("✅ Save Characterization for this Recipe"):
+            if st.form_submit_button("✅ Save Characterization"):
                 if not batch_ref:
-                    st.error("Notebook Reference is required.")
+                    st.error("Reference is required.")
                 else:
                     try:
-                        # 1. Create the SynthesisBatch (or find existing one with same ref)
                         target_recipe_uuid = uuid.UUID(sel_recipe_id)
+                        # Ensure batch exists
                         batch = db.query(SynthesisBatch).filter(
                             SynthesisBatch.recipe_id == target_recipe_uuid,
                             SynthesisBatch.lab_notebook_ref == batch_ref
@@ -148,14 +160,16 @@ with tab2:
                                 lab_notebook_ref=batch_ref,
                                 operator=operator,
                                 status="Completed",
-                                execution_date=datetime.datetime.utcnow()
+                                execution_date=sel_recipe_date # Baseline
                             )
                             db.add(batch)
-                            db.flush() # Get the batch ID
+                            db.flush()
                         
-                        # 2. Save QC Measurement
+                        # Save QC
                         qc = QCMeasurement(
                             batch_id=batch.id,
+                            measured_at=measurement_ts,
+                            ageing_time=age_h,
                             ph=final_ph,
                             solid_content_measured=final_solids,
                             settling_height=settling,
@@ -184,9 +198,9 @@ with tab2:
                         )
                         db.add(qc)
                         db.commit()
-                        st.success(f"Results successfully linked to Recipe: {sel_recipe_name}")
+                        st.success(f"Results saved. Sample Age: {age_h:.1f} hours.")
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Error saving results: {e}")
+                        st.error(f"Error: {e}")
     else:
-        st.info("👆 Please click a Recipe name in the table above to start entering characterization results.")
+        st.info("👆 Select a Recipe trial to log measurement timeline.")

@@ -61,7 +61,8 @@ def init_db():
             ("psd_after_v_d10", "FLOAT"), ("psd_after_v_d50", "FLOAT"), ("psd_after_v_d90", "FLOAT"), ("psd_after_v_mean", "FLOAT"),
             ("psd_after_n_d10", "FLOAT"), ("psd_after_n_d50", "FLOAT"), ("psd_after_n_d90", "FLOAT"), ("psd_after_n_mean", "FLOAT"),
             ("psd_after_ssa", "FLOAT"),
-            ("agglom_vol", "FLOAT"), ("agglom_num", "FLOAT"), ("agglom_ssa", "FLOAT")
+            ("agglom_vol", "FLOAT"), ("agglom_num", "FLOAT"), ("agglom_ssa", "FLOAT"),
+            ("measured_at", "DATETIME"), ("ageing_time", "FLOAT")
         ]
         for col, dtype in new_cols:
             add_column_if_missing("qc_measurements", col, dtype)
