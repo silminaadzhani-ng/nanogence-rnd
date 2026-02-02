@@ -22,7 +22,24 @@ with st.sidebar:
     st.header("🧠 AI Predictor")
     st.info("Adjust parameters to see estimated 28d Strength.")
 
-tab1, tab2 = st.tabs(["➕ Designer & Calculator", "📚 Recipe Library"])
+tab_dash, tab1, tab2 = st.tabs(["📊 Dashboard", "➕ Designer & Calculator", "📚 Recipe Library"])
+
+with tab_dash:
+    st.subheader("Recipe Analytics")
+    col1, col2, col3 = st.columns(3)
+    
+    total_recipes = db.query(Recipe).count()
+    avg_solids = db.query(st.func.avg(Recipe.total_solid_content)).scalar() or 0
+    
+    col1.metric("Total Recipes", total_recipes)
+    col2.metric("Avg solids (%)", f"{avg_solids:.2f}")
+    col3.metric("Last Recipe", db.query(Recipe.name).order_by(Recipe.id.desc()).first()[0] if total_recipes > 0 else "N/A")
+
+    if total_recipes > 0:
+        recipe_data = db.query(Recipe.ca_si_ratio).all()
+        df_recipes = pd.DataFrame(recipe_data, columns=["Ca/Si Ratio"])
+        st.subheader("Ca/Si Ratio Distribution")
+        st.bar_chart(df_recipes["Ca/Si Ratio"].value_counts())
 
 with tab1:
     with st.expander("ℹ️  Instructions", expanded=False):

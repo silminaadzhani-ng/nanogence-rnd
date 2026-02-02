@@ -16,9 +16,26 @@ st.markdown("# 🧪 Synthesis Results & Characterization")
 
 db: Session = next(get_db())
 
-tab1, tab2, tab3 = st.tabs(["📊 Results Library", "🚀 Log Batch", "📝 Simplified QC Entry"])
+tab_dash, tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "📊 Results Library", "🚀 Log Batch", "📝 Simplified QC Entry"])
 
-# --- Tab 1: Results Library ---
+with tab_dash:
+    st.subheader("Synthesis Analytics")
+    col1, col2, col3 = st.columns(3)
+    
+    total_batches = db.query(SynthesisBatch).count()
+    total_qc = db.query(QCMeasurement).count()
+    avg_ph = db.query(st.func.avg(QCMeasurement.ph)).scalar() or 0
+    
+    col1.metric("Total Batches", total_batches)
+    col2.metric("QC Entries", total_qc)
+    col3.metric("Avg Trial pH", f"{avg_ph:.2f}")
+
+    if total_qc > 0:
+        qc_data = db.query(QCMeasurement.ph, QCMeasurement.solid_content_measured).all()
+        df_qc = pd.DataFrame(qc_data, columns=["pH", "Solids (%)"])
+        st.subheader("pH vs Solids Distribution")
+        st.scatter_chart(df_qc, x="pH", y="Solids (%)")
+
 with tab1:
     st.subheader("Synthesis Characterization Table")
     

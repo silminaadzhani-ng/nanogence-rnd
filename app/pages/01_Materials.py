@@ -24,7 +24,25 @@ CHEMICALS = {
     "NaOH": {"mw": 40.00, "type": "NaOH"}
 }
 
-tab1, tab2 = st.tabs(["🏛️ Raw Material Inventory", "🧪 Stock Solution Management"])
+tab_dash, tab1, tab2 = st.tabs(["📊 Dashboard", "🏛️ Raw Material Inventory", "🧪 Stock Solution Management"])
+
+with tab_dash:
+    st.subheader("Inventory Overview")
+    col1, col2, col3 = st.columns(3)
+    
+    total_rm = db.query(RawMaterial).count()
+    total_ss = db.query(StockSolutionBatch).count()
+    
+    col1.metric("Total Raw Materials", total_rm)
+    col2.metric("Active Stock Solutions", total_ss)
+    col3.metric("Last Update", datetime.date.today().strftime("%Y-%m-%d"))
+
+    # Simple chart of stock solutions by type
+    if total_ss > 0:
+        ss_types = db.query(StockSolutionBatch.chemical_type).all()
+        df_types = pd.DataFrame(ss_types, columns=["Type"])
+        type_counts = df_types["Type"].value_counts()
+        st.bar_chart(type_counts)
 
 with tab1:
     st.subheader("Raw Material Inventory")
