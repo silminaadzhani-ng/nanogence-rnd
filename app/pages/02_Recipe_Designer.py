@@ -56,15 +56,15 @@ with tab1:
         name = st.text_input("Recipe Name", placeholder="e.g. CSH-Seed-Standard-2024")
         
         c1, c2 = st.columns(2)
-        ca_si = c1.number_input("Ca/Si Ratio", min_value=0.0, max_value=2.5, step=0.05, value=1.0)
-        solids = c2.number_input("Target Solid Content (%)", min_value=0.1, max_value=50.0, value=5.0)
+        ca_si = c1.number_input("Ca/Si Ratio", min_value=0.0, max_value=2.5, step=0.05, value=1.25)
+        solids = c2.number_input("Target Solid Content (%)", min_value=0.1, max_value=50.0, value=7.0)
         
         c3, c4 = st.columns(2)
-        m_ca = c3.number_input("Ca(NO3)2 Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=4.0)
-        m_si = c4.number_input("Na2SiO3 Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=2.0)
+        m_ca = c3.number_input("Ca(NO3)2 Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=3.0)
+        m_si = c4.number_input("Na2SiO3 Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=1.5)
         
         c5, c6 = st.columns(2)
-        pce_dosage = c5.number_input("PCE Dosage (wt.% of total)", min_value=0.0, max_value=100.0, step=0.1, value=1.25)
+        pce_dosage = c5.number_input("PCE Dosage (%)", min_value=0.0, max_value=100.0, step=0.1, value=30.0)
         pce_conc = c6.number_input("PCE Solution Conc. (wt.%)", min_value=1.0, max_value=100.0, value=50.0)
 
         st.subheader("🏢 Material Sourcing")
@@ -86,11 +86,14 @@ with tab1:
     with col2:
         st.subheader("📊 Mass Calculator (Real-time)")
         
-        target_val = st.number_input("Target Total Batch Mass (g)", min_value=1.0, value=415.0)
+        target_val = st.number_input("Target Total Batch Mass (g)", min_value=1.0, value=421.0)
+        
+        # PCE Dosage Basis Selection
+        pce_basis = st.selectbox("PCE Dosage Basis", ["% of Ca(NO3)2 Reactant Mass", "% of Total Batch Mass"], index=0)
         
         exp_densities = st.expander("Solution Densities (g/mL)", expanded=False)
-        d_ca = exp_densities.number_input("Ca Solution Density", value=1.401, format="%.3f")
-        d_si = exp_densities.number_input("Si Solution Density", value=1.230, format="%.3f")
+        d_ca = exp_densities.number_input("Ca Solution Density", value=1.287, format="%.3f")
+        d_si = exp_densities.number_input("Si Solution Density", value=1.169, format="%.3f")
         d_pce = exp_densities.number_input("PCE Solution Density", value=1.080, format="%.3f")
         d_water = exp_densities.number_input("Water Density", value=0.998, format="%.3f")
         
@@ -105,21 +108,27 @@ with tab1:
         # Fixed to Total Mass (g)
         m_total = target_val
         
-        # Fixed to % of Total Batch Mass
-        mass_pce_sol = m_total * (pce_dosage / 100.0)
-        v_pce_ml = mass_pce_sol / d_pce
-        
-        # Calculate minerals based on target solids and remaining available mass
-        # Note: In C-S-H synthesis, we usually assume the target solids percentage 
-        # is the total mineral content (C-S-H phase) relative to total batch mass.
+        # Calculate mineral masses first
         n_si_mol = (m_total * alpha) / S
         n_ca_mol = n_si_mol * ca_si
+        m_ca_anhydrous = n_ca_mol * MW_CA  # This is the actual Ca(NO3)2 reactant mass
         
         v_si_ml = (n_si_mol * 1000) / m_si if m_si > 0 else 0
         v_ca_ml = (n_ca_mol * 1000) / m_ca if m_ca > 0 else 0
         
         mass_si_sol = v_si_ml * d_si
         mass_ca_sol = v_ca_ml * d_ca
+        
+        # Calculate PCE based on selected basis
+        if pce_basis == "% of Ca(NO3)2 Reactant Mass":
+            # PCE dosage is % of the Ca(NO3)2 reactant mass
+            mass_pce_solid = m_ca_anhydrous * (pce_dosage / 100.0)
+            mass_pce_sol = mass_pce_solid / pce_conc_factor
+        else:
+            # PCE dosage is % of total batch mass
+            mass_pce_sol = m_total * (pce_dosage / 100.0)
+        
+        v_pce_ml = mass_pce_sol / d_pce
         
         mass_water = m_total - mass_si_sol - mass_ca_sol - mass_pce_sol
         v_water_ml = mass_water / d_water
@@ -128,12 +137,60 @@ with tab1:
         display_source_ca = ca_batch_id if ca_batch_id != "None" else source_ca
         display_source_si = si_batch_id if si_batch_id != "None" else source_si
 
+        display_source_ca = ca_batch_id if ca_batch_id != "None" else source_ca
+        display_source_si = si_batch_id if si_batch_id != "None" else source_si
+
+        # Calculate solid masses for table display
+        solid_mass_si = (n_si_mol * MW_SI) / 1000.0 * 1000.0 # g
+        solid_mass_ca = m_ca_anhydrous # g
+        solid_mass_pce = mass_pce_sol * pce_conc_factor # g
+
         calc_data = [
-            {"Ingredient": "Na2SiO3 Solution", "Source": display_source_si, "Conc.": f"{m_si} M", "Mass (g)": f"{mass_si_sol:.2f}"},
-            {"Ingredient": "Ca(NO3)2 Solution", "Source": display_source_ca, "Conc.": f"{m_ca} M", "Mass (g)": f"{mass_ca_sol:.2f}"},
-            {"Ingredient": "PCE Solution", "Source": source_pce, "Conc.": f"{pce_conc}%", "Mass (g)": f"{mass_pce_sol:.2f}"},
-            {"Ingredient": "DI Water", "Source": "DI", "Conc.": f"{d_water:.3f} g/mL", "Mass (g)": f"{mass_water:.2f}"},
-            {"Ingredient": "TOTAL", "Source": "BATCH", "Conc.": f"{v_total:.1f} mL", "Mass (g)": f"{m_total:.2f}"},
+            {
+                "Ingredient": "Na2SiO3 Sol.", 
+                "Mass (g)": f"{mass_si_sol:.2f}", 
+                "Mass %": f"{(mass_si_sol/m_total*100):.1f}%", 
+                "Vol (mL)": f"{v_si_ml:.2f}", 
+                "Mole (mmol)": f"{n_si_mol*1000:.2f}",
+                "Solid (g)": f"{v_si_ml * m_si * MW_SI / 1000.0:.2f}", # Recalculated for check
+                "Solid %": f"{(v_si_ml * m_si * MW_SI / 1000.0 / m_total * 100):.2f}%"
+            },
+            {
+                "Ingredient": "Ca(NO3)2 Sol.", 
+                "Mass (g)": f"{mass_ca_sol:.2f}", 
+                "Mass %": f"{(mass_ca_sol/m_total*100):.1f}%", 
+                "Vol (mL)": f"{v_ca_ml:.2f}", 
+                "Mole (mmol)": f"{n_ca_mol*1000:.2f}",
+                "Solid (g)": f"{m_ca_anhydrous:.2f}",
+                "Solid %": f"{(m_ca_anhydrous/m_total*100):.2f}%"
+            },
+            {
+                "Ingredient": "PCE Sol.", 
+                "Mass (g)": f"{mass_pce_sol:.2f}", 
+                "Mass %": f"{(mass_pce_sol/m_total*100):.1f}%", 
+                "Vol (mL)": f"{v_pce_ml:.2f}", 
+                "Mole (mmol)": "-",
+                "Solid (g)": f"{solid_mass_pce:.2f}",
+                "Solid %": f"{(solid_mass_pce/m_total*100):.2f}%"
+            },
+            {
+                "Ingredient": "DI Water", 
+                "Mass (g)": f"{mass_water:.2f}", 
+                "Mass %": f"{(mass_water/m_total*100):.1f}%", 
+                "Vol (mL)": f"{v_water_ml:.2f}", 
+                "Mole (mmol)": "-",
+                "Solid (g)": "-",
+                "Solid %": "-"
+            },
+            {
+                "Ingredient": "TOTAL", 
+                "Mass (g)": f"{m_total:.2f}", 
+                "Mass %": "100.0%", 
+                "Vol (mL)": f"{v_total:.1f}", 
+                "Mole (mmol)": "-",
+                "Solid (g)": f"{solid_mass_si + m_ca_anhydrous + solid_mass_pce:.2f}",
+                "Solid %": f"{( (solid_mass_si + m_ca_anhydrous + solid_mass_pce)/m_total*100 ):.2f}%"
+            },
         ]
         st.table(calc_data)
         st.caption(f"Theoretical n_Si: {n_si_mol*1000:.2f} mmol | n_Ca: {n_ca_mol*1000:.2f} mmol | PCE solid: {mass_pce_sol * pce_conc_factor:.2f} g")
