@@ -64,6 +64,7 @@ with tab1:
                 "V-d50 (Bef)": qc.psd_before_v_d50,
                 "V-d50 (Aft)": qc.psd_after_v_d50,
                 "Measured At": qc.measured_at.strftime("%Y-%m-%d %H:%M") if qc.measured_at else "N/A",
+                "Final Form": qc.custom_metrics.get("final_form", "N/A") if qc.custom_metrics else "N/A",
                 "Ref": qc.batch.lab_notebook_ref if qc.batch else "N/A"
             })
         
@@ -129,10 +130,11 @@ with tab2:
             measurement_ts = datetime.datetime.combine(measurement_date, datetime.datetime.now().time())
 
             st.markdown("#### General Properties")
-            c1, c2, c3 = st.columns(3)
+            c1, c2, c3, c4 = st.columns(4)
             final_ph = c1.number_input("Final pH", value=11.50)
             final_solids = c2.number_input("Final Solids content (%)", value=5.0)
             settling = c3.number_input("Settling Height (mm)", value=0.0)
+            final_form = c4.selectbox("Final Form", ["Suspension", "Gelified", "Precipitate", "Other"])
 
             st.markdown("#### Particle Size Analysis (PSD)")
             psd_rows = ["d10 (µm)", "d50 (µm)", "d90 (µm)", "Mean (µm)", "SSA (m²/cm³)"]
@@ -192,7 +194,8 @@ with tab2:
                             psd_after_n_d10=edited_psd.at["d10 (µm)", "Number (After)"],
                             psd_after_n_d50=edited_psd.at["d50 (µm)", "Number (After)"],
                             psd_after_n_d90=edited_psd.at["d90 (µm)", "Number (After)"],
-                            psd_after_n_mean=edited_psd.at["Mean (µm)", "Number (After)"]
+                            psd_after_n_mean=edited_psd.at["Mean (µm)", "Number (After)"],
+                            custom_metrics={"final_form": final_form}
                         )
                         db.add(qc)
                         db.commit()
