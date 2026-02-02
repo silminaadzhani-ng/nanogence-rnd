@@ -42,7 +42,14 @@ with tab1:
             if uploaded_file.name.endswith('.csv'):
                 df = pd.read_csv(uploaded_file)
             else:
-                df = pd.read_excel(uploaded_file)
+                # Load Excel to check for sheets
+                xls = pd.ExcelFile(uploaded_file)
+                sheet_names = xls.sheet_names
+                if len(sheet_names) > 1:
+                    selected_sheet = st.selectbox("Select Sheet", options=sheet_names)
+                else:
+                    selected_sheet = sheet_names[0]
+                df = pd.read_excel(uploaded_file, sheet_name=selected_sheet)
         except Exception as e:
             st.error(f"Error reading file: {e}")
 
