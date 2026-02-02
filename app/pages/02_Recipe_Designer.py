@@ -316,11 +316,19 @@ if is_designer:
     d_rate_si = edit_recipe.si_addition_rate if edit_recipe else 0.5
     d_target_ph = edit_recipe.target_ph if edit_recipe else 11.5
     d_notes = edit_recipe.process_config.get("procedure", "") if edit_recipe and edit_recipe.process_config else ""
+    d_seq = edit_recipe.process_config.get("feeding_sequence", "a. Calcium and silicate solutions dropped in PCE") if edit_recipe and edit_recipe.process_config else "a. Calcium and silicate solutions dropped in PCE"
     
     cp_c1, cp_c2, cp_c3 = st.columns(3)
     rate_ca = cp_c1.number_input("Ca Addition Rate (mL/min)", value=d_rate_ca, key=f"rate_ca_{edit_context_id}")
     rate_si = cp_c2.number_input("Si Addition Rate (mL/min)", value=d_rate_si, key=f"rate_si_{edit_context_id}")
     target_ph = cp_c3.number_input("Target pH", value=d_target_ph, step=0.1, key=f"ph_{edit_context_id}")
+    
+    seq_options = [
+        "a. Calcium and silicate solutions dropped in PCE",
+        "b. Calcium and PCE dropped in silicate",
+        "c. Silicate and PCE dropped in calcium"
+    ]
+    feeding_seq = st.selectbox("Feeding Sequence", options=seq_options, index=seq_options.index(d_seq) if d_seq in seq_options else 0, key=f"feed_seq_{edit_context_id}")
     
     procedure_notes = st.text_area("Procedure Notes", value=d_notes, placeholder="e.g. 1. Dissolve PCX...\n2. Start feeding...", height=150, key=f"notes_{edit_context_id}")
     
@@ -349,7 +357,7 @@ if is_designer:
             st.error("Recipe Name is required.")
         else:
             try:
-                proc_config = {"procedure": procedure_notes}
+                proc_config = {"procedure": procedure_notes, "feeding_sequence": feeding_seq}
                 sources = {"ca": source_ca, "si": source_si, "pce": source_pce}
                 
                 if edit_recipe:
