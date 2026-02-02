@@ -180,18 +180,25 @@ if is_designer:
         
         target_val = st.number_input("Target Total Batch Mass (g)", min_value=1.0, value=415.0)
         
-        exp_densities = st.expander("Solution Densities (g/mL)", expanded=False)
-        d_ca = exp_densities.number_input("Ca Solution Density", value=1.150, format="%.3f")
-        d_si = exp_densities.number_input("Si Solution Density", value=1.084, format="%.3f")
-        d_pce = exp_densities.number_input("PCE Solution Density", value=1.080, format="%.3f")
-        d_water = exp_densities.number_input("Water Density", value=0.998, format="%.3f")
+        exp_params = st.expander("⚖️ Physical & Chemical Parameters", expanded=False)
+        c_mw1, c_mw2 = exp_params.columns(2)
+        mw_si = c_mw1.number_input("MW Na2SiO3 (Anhy.)", value=122.10, format="%.2f", step=0.01)
+        mw_ca = c_mw2.number_input("MW Ca(NO3)2 (Anhy.)", value=164.08, format="%.2f", step=0.01)
+        
+        c_hyd1, c_hyd2 = exp_params.columns(2)
+        mw_si_hyd = c_hyd1.number_input("MW Na2SiO3.5H2O", value=212.14, format="%.2f")
+        mw_ca_hyd = c_hyd2.number_input("MW Ca(NO3)2.4H2O", value=236.15, format="%.2f")
+
+        c_d1, c_d2 = exp_params.columns(2)
+        d_si = c_d1.number_input("Si Sol. Density (g/mL)", value=1.116, format="%.4f")
+        d_ca = c_d2.number_input("Ca Sol. Density (g/mL)", value=1.213, format="%.4f")
+        
+        c_d3, c_d4 = exp_params.columns(2)
+        d_pce = c_d3.number_input("PCE Density (g/mL)", value=1.080, format="%.3f")
+        d_water = c_d4.number_input("Water Density (g/mL)", value=0.998, format="%.3f")
         
         # Stoichiometric Calculation
-        # MW used for Na2SiO3 (Anhydrous) and Ca(NO3)2 (Anhydrous)
-        MW_SI = 122.06
-        MW_CA = 164.09
-        st.caption(f"Using MW: Na2SiO3={MW_SI}, Ca(NO3)2={MW_CA}")
-        S = MW_SI + ca_si * MW_CA
+        S = mw_si + ca_si * mw_ca
         pce_conc_factor = pce_conc / 100.0
         # 1. Total Mass is the anchor
         m_total = target_val
@@ -210,7 +217,7 @@ if is_designer:
             n_si_mol = 0
             
         n_ca_mol = n_si_mol * ca_si
-        m_ca_anhydrous = n_ca_mol * MW_CA
+        m_ca_anhydrous = n_ca_mol * mw_ca
         
         # 3. Calculate PCE Mass
         if pce_basis == "% of Total Batch Mass":
@@ -237,55 +244,59 @@ if is_designer:
         display_source_si = si_batch_selection if si_batch_selection != "None" else "Manual"
 
         # Calculate solid masses for table display
-        solid_mass_si = (n_si_mol * MW_SI) / 1000.0 * 1000.0 # g
-        solid_mass_ca = m_ca_anhydrous # g
-        solid_mass_pce = mass_pce_sol * pce_conc_factor # g
+        solid_mass_si = n_si_mol * mw_si
+        solid_mass_ca = m_ca_anhydrous
+        solid_mass_pce = mass_pce_sol * pce_conc_factor
+        
+        # Hydrate equivalents for mixing/prep verification
+        hyd_mass_si = n_si_mol * mw_si_hyd
+        hyd_mass_ca = n_ca_mol * mw_ca_hyd
 
         calc_data = [
             {
                 "Ingredient": "Na2SiO3 Sol.", 
                 "Mass (g)": f"{mass_si_sol:.2f}", 
-                "Mass %": f"{(mass_si_sol/m_total*100):.1f}%", 
                 "Vol (mL)": f"{v_si_ml:.2f}", 
                 "Mole (mmol)": f"{n_si_mol*1000:.2f}",
-                "Solid (g)": f"{v_si_ml * m_si * MW_SI / 1000.0:.2f}", # Recalculated for check
-                "Solid %": f"{(v_si_ml * m_si * MW_SI / 1000.0 / m_total * 100):.2f}%"
+                "Anhyd. (g)": f"{solid_mass_si:.2f}",
+                "Hydrate (g)": f"{hyd_mass_si:.2f}",
+                "Solid %": f"{(solid_mass_si/m_total*100):.2f}%"
             },
             {
                 "Ingredient": "Ca(NO3)2 Sol.", 
                 "Mass (g)": f"{mass_ca_sol:.2f}", 
-                "Mass %": f"{(mass_ca_sol/m_total*100):.1f}%", 
                 "Vol (mL)": f"{v_ca_ml:.2f}", 
                 "Mole (mmol)": f"{n_ca_mol*1000:.2f}",
-                "Solid (g)": f"{m_ca_anhydrous:.2f}",
-                "Solid %": f"{(m_ca_anhydrous/m_total*100):.2f}%"
+                "Anhyd. (g)": f"{solid_mass_ca:.2f}",
+                "Hydrate (g)": f"{hyd_mass_ca:.2f}",
+                "Solid %": f"{(solid_mass_ca/m_total*100):.2f}%"
             },
             {
                 "Ingredient": "PCE Sol.", 
                 "Mass (g)": f"{mass_pce_sol:.2f}", 
-                "Mass %": f"{(mass_pce_sol/m_total*100):.1f}%", 
                 "Vol (mL)": f"{v_pce_ml:.2f}", 
                 "Mole (mmol)": "-",
-                "Solid (g)": f"{solid_mass_pce:.2f}",
+                "Anhyd. (g)": f"{solid_mass_pce:.2f}",
+                "Hydrate (g)": "-",
                 "Solid %": f"{(solid_mass_pce/m_total*100):.2f}%"
             },
             {
                 "Ingredient": "DI Water", 
                 "Mass (g)": f"{mass_water:.2f}", 
-                "Mass %": f"{(mass_water/m_total*100):.1f}%", 
                 "Vol (mL)": f"{v_water_ml:.2f}", 
                 "Mole (mmol)": "-",
-                "Solid (g)": "-",
+                "Anhyd. (g)": "-",
+                "Hydrate (g)": "-",
                 "Solid %": "-"
             },
             {
                 "Ingredient": "TOTAL", 
                 "Mass (g)": f"{m_total:.2f}", 
-                "Mass %": "100.0%", 
                 "Vol (mL)": f"{v_total:.1f}", 
                 "Mole (mmol)": "-",
-                "Solid (g)": f"{solid_mass_si + m_ca_anhydrous + solid_mass_pce:.2f}",
-                "Solid %": f"{( (solid_mass_si + m_ca_anhydrous + solid_mass_pce)/m_total*100 ):.2f}%"
+                "Anhyd. (g)": f"{solid_mass_si + solid_mass_ca + solid_mass_pce:.2f}",
+                "Hydrate (g)": f"{hyd_mass_si + hyd_mass_ca:.2f}",
+                "Solid %": f"{( (solid_mass_si + solid_mass_ca + solid_mass_pce)/m_total*100 ):.2f}%"
             },
         ]
         # Using dataframe to hide the index column
