@@ -27,7 +27,7 @@ db: Session = next(get_db())
 # Function to generate unique recipe code
 def generate_recipe_code():
     today_str = datetime.now().strftime("%Y%m%d")
-    prefix = f"REC-{today_str}-"
+    prefix = f"NG-{today_str}-"
     count = db.query(Recipe).filter(Recipe.code.like(f"{prefix}%")).count()
     return f"{prefix}{count + 1:02d}"
 
