@@ -2,8 +2,11 @@ import streamlit as st
 import json
 from datetime import datetime
 from sqlalchemy.orm import Session
-from app.database import get_db
+from app.database import get_db, init_db
 from app.models import Recipe, StockSolutionBatch
+
+# Ensure database is synced
+init_db()
 from app.ml_utils import predict_strength
 
 st.set_page_config(page_title="Recipe Designer", page_icon="📝", layout="wide")

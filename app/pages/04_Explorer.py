@@ -1,7 +1,10 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from app.database import engine
+from app.database import engine, init_db
+
+# Ensure database is synced
+init_db()
 
 st.set_page_config(page_title="Analytics Explorer", page_icon="🕵️", layout="wide")
 

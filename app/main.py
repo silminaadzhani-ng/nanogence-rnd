@@ -7,11 +7,10 @@ root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if root_path not in sys.path:
     sys.path.append(root_path)
 
-from app.database import engine, Base
-import app.models # Ensure models are registered
+from app.database import init_db
 
-# Ensure tables exist
-Base.metadata.create_all(bind=engine)
+# Centralized database initialization (Handles tables and missing columns)
+init_db()
     page_title="Nanogence R&D Platform",
     page_icon="🧪",
     layout="wide",

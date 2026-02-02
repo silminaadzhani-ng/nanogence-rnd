@@ -2,8 +2,11 @@ import streamlit as st
 import datetime
 import json
 from sqlalchemy.orm import Session
-from app.database import get_db
+from app.database import get_db, init_db
 from app.models import Recipe, SynthesisBatch, QCMeasurement
+
+# Ensure database is synced
+init_db()
 
 st.set_page_config(page_title="Lab Notebook", page_icon="🧪", layout="wide")
 

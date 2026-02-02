@@ -2,8 +2,11 @@ import streamlit as st
 import pandas as pd
 import datetime
 from sqlalchemy.orm import Session
-from app.database import get_db
+from app.database import get_db, init_db
 from app.models import Recipe, SynthesisBatch, PerformanceTest
+
+# Ensure database is synced
+init_db()
 
 st.set_page_config(page_title="Data Import", page_icon="📤", layout="wide")
 
