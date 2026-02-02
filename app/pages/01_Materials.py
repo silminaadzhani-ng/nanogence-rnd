@@ -1,6 +1,7 @@
 import streamlit as st
 import datetime
 import pandas as pd
+import uuid
 from sqlalchemy.orm import Session
 from app.database import get_db, init_db
 from app.models import StockSolutionBatch, RawMaterial
@@ -106,8 +107,9 @@ with tab1:
                 try:
                     deleted_count = 0
                     for idx in selected_row_indices:
-                        target_id = mat_data[idx]["ID"]
-                        target = db.query(RawMaterial).filter(RawMaterial.id == target_id).first()
+                        raw_id_str = mat_data[idx]["ID"]
+                        target_uuid = uuid.UUID(raw_id_str)
+                        target = db.query(RawMaterial).filter(RawMaterial.id == target_uuid).first()
                         if target:
                             db.delete(target)
                             deleted_count += 1
@@ -124,7 +126,7 @@ with tab2:
     
     # Fetch RM options
     rm_list = db.query(RawMaterial).all()
-    rm_options = {f"{m.material_name} (Lot: {m.lot_number})": m.id for m in rm_list}
+    rm_options = {f"{m.material_name} (Lot: {m.lot_number})": str(m.id) for m in rm_list}
     
     if not rm_options:
         st.warning("Please log raw materials first to prepare stock solutions.")
@@ -134,8 +136,8 @@ with tab2:
             with col1:
                 prep_date = st.date_input("Preparation Date", value=datetime.date.today(), key="prep_date")
                 selected_rm_key = st.selectbox("Source Raw Material", options=list(rm_options.keys()))
-                selected_rm_id = rm_options[selected_rm_key]
-                selected_rm = db.query(RawMaterial).filter(RawMaterial.id == selected_rm_id).first()
+                selected_rm_id_str = rm_options[selected_rm_key]
+                selected_rm = db.query(RawMaterial).filter(RawMaterial.id == uuid.UUID(selected_rm_id_str)).first()
                 
                 target_m = st.number_input("Target Molarity (mol/L)", min_value=0.01, step=0.01, value=1.50 if "Ca" in selected_rm.chemical_type else 0.75)
                 target_v = st.number_input("Target Volume (mL)", min_value=1.0, step=10.0, value=1000.0)
@@ -216,8 +218,9 @@ with tab2:
                     try:
                         del_ss_count = 0
                         for idx in selected_ss_indices:
-                            target_ss_id = ss_data[idx]["ID"]
-                            target = db.query(StockSolutionBatch).filter(StockSolutionBatch.id == target_ss_id).first()
+                            target_ss_id_str = ss_data[idx]["ID"]
+                            target_ss_uuid = uuid.UUID(target_ss_id_str)
+                            target = db.query(StockSolutionBatch).filter(StockSolutionBatch.id == target_ss_uuid).first()
                             if target:
                                 db.delete(target)
                                 del_ss_count += 1
