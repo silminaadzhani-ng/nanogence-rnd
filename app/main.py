@@ -11,6 +11,7 @@ from app.database import init_db
 
 # Centralized database initialization (Handles tables and missing columns)
 init_db()
+st.set_page_config(
     page_title="Nanogence R&D Platform",
     page_icon="🧪",
     layout="wide",
