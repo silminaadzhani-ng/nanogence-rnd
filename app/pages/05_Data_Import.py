@@ -54,12 +54,29 @@ with tab2:
     3. Select your sheet and choose **Comma-separated values (.csv)**.
     4. Paste the generated link below.
     """)
-    sheet_url = st.text_input("Public CSV Link", placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv")
+    sheet_url = st.text_input("Google Sheet Link", placeholder="Paste your Google Sheet URL here")
     if sheet_url:
         try:
-            df = pd.read_csv(sheet_url)
+            # Auto-convert standard Google Sheet links to CSV export links
+            final_url = sheet_url
+            if "docs.google.com/spreadsheets" in sheet_url:
+                if "/export" not in sheet_url and "/pub" not in sheet_url:
+                    # Handle GID (tab selection)
+                    import re
+                    gid_match = re.search(r"gid=(\d+)", sheet_url)
+                    gid = gid_match.group(1) if gid_match else "0"
+                    
+                    base_url = sheet_url.split("/edit")[0]
+                    final_url = f"{base_url}/export?format=csv&gid={gid}"
+                    st.caption(f"🔄 Auto-converted to CSV link: `{final_url[:60]}...`")
+
+            df = pd.read_csv(final_url)
         except Exception as e:
-            st.error(f"Error reading Google Sheet Link: {e}")
+            if "401" in str(e) or "403" in str(e):
+                st.error("🔑 **Unauthorized (401/403)**: Your Google Sheet is private.")
+                st.info("💡 **Fix**: Click **Share** in Google Sheets and change permission to **'Anyone with the link can view'**, or use **'Publish to Web'** as CSV.")
+            else:
+                st.error(f"Error reading Google Sheet: {e}")
 
 if df is not None:
     st.subheader("Data Preview")
