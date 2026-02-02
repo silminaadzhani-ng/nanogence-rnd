@@ -193,7 +193,9 @@ with tab1:
                 "Solid %": f"{( (solid_mass_si + m_ca_anhydrous + solid_mass_pce)/m_total*100 ):.2f}%"
             },
         ]
-        st.table(calc_data)
+        # Using dataframe to hide the index column
+        st.dataframe(calc_data, use_container_width=True, hide_index=True)
+        
         st.caption(f"Theoretical n_Si: {n_si_mol*1000:.2f} mmol | n_Ca: {n_ca_mol*1000:.2f} mmol | PCE solid: {mass_pce_sol * pce_conc_factor:.2f} g")
 
     st.divider()
