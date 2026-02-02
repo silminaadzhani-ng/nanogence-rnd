@@ -36,8 +36,8 @@ with col1:
     solids = c2.number_input("Target Solid Content (%)", min_value=0.1, max_value=50.0, value=5.0)
     
     c3, c4 = st.columns(2)
-    m_ca = c3.number_input("Ca Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=1.5)
-    m_si = c4.number_input("Si Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=0.75)
+    m_ca = c3.number_input("Ca(NO3)2 Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=1.5)
+    m_si = c4.number_input("Na2SiO3 Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=0.75)
     
     c5, c6 = st.columns(2)
     pce_dosage = c5.number_input("PCE Dosage (wt.% of solids)", min_value=0.0, max_value=50.0, step=0.1, value=2.0)
