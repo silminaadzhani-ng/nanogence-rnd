@@ -89,6 +89,7 @@ with tab2:
     for r in recipes:
         recipe_table_data.append({
             "ID": str(r.id),
+            "Code": r.code if r.code else "N/A",
             "Name": r.name,
             "Created": r.recipe_date.strftime("%Y-%m-%d %H:%M") if r.recipe_date else "N/A",
             "Recipe_Date_Obj": r.recipe_date
@@ -102,7 +103,7 @@ with tab2:
         hide_index=True,
         on_select="rerun",
         selection_mode="single-row",
-        column_order=["Name", "Created"]
+        column_order=["Code", "Name", "Created"]
     )
     
     selected_indices = recipe_selection.selection.rows
@@ -110,17 +111,18 @@ with tab2:
     if selected_indices:
         idx = selected_indices[0]
         sel_recipe_id = recipe_table_data[idx]["ID"]
+        sel_recipe_code = recipe_table_data[idx]["Code"]
         sel_recipe_name = recipe_table_data[idx]["Name"]
         sel_recipe_date = recipe_table_data[idx]["Recipe_Date_Obj"]
         
-        st.success(f"Selected Recipe: **{sel_recipe_name}** (Created: {sel_recipe_date.strftime('%Y-%m-%d %H:%M') if sel_recipe_date else 'N/A'})")
+        st.success(f"Selected Recipe: **{sel_recipe_code}** - {sel_recipe_name} (Created: {sel_recipe_date.strftime('%Y-%m-%d %H:%M') if sel_recipe_date else 'N/A'})")
         
         st.divider()
         st.subheader("2. Measurement entry")
         
         with st.form("characterization_form"):
             c_meta1, c_meta2 = st.columns(2)
-            batch_ref = c_meta1.text_input("Notebook / Lab Reference", value=f"NB-{sel_recipe_name}")
+            batch_ref = c_meta1.text_input("Notebook / Lab Reference", value=f"NB-{sel_recipe_code}")
             operator = c_meta2.text_input("Operator Name", value="Silmina Adzhani")
             
             c_time1, c_time2 = st.columns(2)
