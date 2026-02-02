@@ -116,7 +116,7 @@ with tab2:
         st.success(f"Selected Recipe: **{sel_recipe_name}** (Created: {sel_recipe_date.strftime('%Y-%m-%d %H:%M') if sel_recipe_date else 'N/A'})")
         
         st.divider()
-        st.subheader("2. Measurement Timeline & QC Entry")
+        st.subheader("2. Measurement entry")
         
         with st.form("characterization_form"):
             c_meta1, c_meta2 = st.columns(2)
