@@ -51,19 +51,33 @@ with tab1:
     with st.expander("📥 Log New Received Material", expanded=False):
         c1, c2 = st.columns(2)
         with c1:
-            mat_name = st.selectbox("Material Name", options=list(CHEMICALS.keys()) + ["Other"])
-            if mat_name == "Other":
-                mat_name = st.text_input("Custom Material Name")
+            mat_name_base = st.selectbox("Material Name", options=list(CHEMICALS.keys()) + ["Other"])
             
-            default_mw = CHEMICALS.get(mat_name, {}).get("mw", 100.0)
-            mw_input = st.number_input("Molecular Weight (hydrate basis, g/mol)", min_value=0.1, value=default_mw, format="%.2f")
-            brand = st.text_input("Brand / Supplier", value="Carl Roth")
+            if mat_name_base == "PCE":
+                pce_type = st.selectbox("PCE Type", options=["PCX 50", "PCX 100", "Mapei", "Sika", "Other"])
+                if pce_type == "Other":
+                    pce_type = st.text_input("Specify PCE Type")
+                mat_name = f"PCE ({pce_type})"
+                mw_input = 1.0 # Placeholder for PCE
+                brand = st.text_input("Brand / Supplier", value="Cromogenia")
+            elif mat_name_base == "Other":
+                mat_name = st.text_input("Custom Material Name")
+                mw_input = st.number_input("Molecular Weight (hydrate basis, g/mol)", min_value=0.1, value=100.0, format="%.2f")
+                brand = st.text_input("Brand / Supplier", value="Carl Roth")
+            else:
+                mat_name = mat_name_base
+                default_mw = CHEMICALS.get(mat_name, {}).get("mw", 100.0)
+                mw_input = st.number_input("Molecular Weight (hydrate basis, g/mol)", min_value=0.1, value=default_mw, format="%.2f")
+                brand = st.text_input("Brand / Supplier", value="Carl Roth")
         
         with c2:
             lot = st.text_input("Lot / Batch Number")
             received_date = st.date_input("Received Date", value=datetime.date.today())
             qty = st.number_input("Initial Quantity (kg)", min_value=0.0, step=0.1, value=1.0)
-            purity = st.number_input("Purity (%)", min_value=0.1, max_value=100.0, value=99.0)
+            
+            # Label change for PCE
+            purity_label = "% Solid Content" if mat_name_base == "PCE" else "Purity (%)"
+            purity = st.number_input(purity_label, min_value=0.1, max_value=100.0, value=50.0 if mat_name_base == "PCE" else 99.0)
         
         notes = st.text_area("Additional Notes (e.g. Storage location)")
         
