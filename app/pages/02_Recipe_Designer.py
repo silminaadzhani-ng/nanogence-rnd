@@ -58,25 +58,22 @@ with st.sidebar:
     st.info("Adjust parameters to see estimated 28d Strength.")
 
 # Navigation State
-if "active_tab_index" not in st.session_state:
-    st.session_state.active_tab_index = 0
+if "nav_radio" not in st.session_state:
+    st.session_state.nav_radio = "📊 Dashboard"
 
 options = ["📊 Dashboard", "➕ Designer & Calculator", "📚 Recipe Library"]
 
 # Navigation Bar
 selected_tab = st.radio("Navigation", 
                         options, 
-                        index=st.session_state.active_tab_index,
+                        key="nav_radio",
                         horizontal=True,
                         label_visibility="collapsed")
 
-# Store selected tab back to index for persistence across page changes
-st.session_state.active_tab_index = options.index(selected_tab)
-
 # Map selection to variables
-is_dash = selected_tab == "📊 Dashboard"
-is_designer = selected_tab == "➕ Designer & Calculator"
-is_library = selected_tab == "📚 Recipe Library"
+is_dash = st.session_state.nav_radio == "📊 Dashboard"
+is_designer = st.session_state.nav_radio == "➕ Designer & Calculator"
+is_library = st.session_state.nav_radio == "📚 Recipe Library"
 
 if is_dash:
     st.subheader("Recipe Analytics")
@@ -433,6 +430,10 @@ if is_designer:
 
 if is_library:
     st.subheader("📚 Recipe Library")
+    
+    def on_edit_click(rid):
+        st.session_state.edit_recipe_id = rid
+        st.session_state.nav_radio = "➕ Designer & Calculator"
 
     # Filter Bar
     f1, f2 = st.columns([3, 1])
@@ -493,10 +494,8 @@ if is_library:
                 
                 # Actions
                 ac1, ac2, ac3 = st.columns([1, 1, 4])
-                if ac1.button("✏️ Edit", key=f"edit_{r.id}"):
-                    st.session_state.edit_recipe_id = r.id
-                    st.session_state.active_tab_index = 1
-                    st.rerun()
+                ac1.button("✏️ Edit", key=f"edit_{r.id}", on_click=on_edit_click, args=(r.id,))
+                # No separate if block needed as callback handles state update
                     
                 if ac2.button("🗑️ Delete", key=f"del_{r.id}"):
                      try:
