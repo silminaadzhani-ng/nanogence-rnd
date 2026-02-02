@@ -5,6 +5,22 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from .database import Base
 
+class RawMaterial(Base):
+    __tablename__ = "raw_materials"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    material_name = Column(String, index=True) # e.g. Ca(NO3)2·4H2O
+    chemical_type = Column(String) # 'Ca', 'Si', 'PCE', 'NaOH'
+    brand = Column(String) # e.g. Carl Roth
+    lot_number = Column(String)
+    received_date = Column(DateTime, default=datetime.utcnow)
+    expiry_date = Column(DateTime, nullable=True)
+    initial_quantity_kg = Column(Float)
+    remaining_quantity_kg = Column(Float)
+    purity_percent = Column(Float, default=99.0)
+    notes = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 class StockSolutionBatch(Base):
     __tablename__ = "stock_solution_batches"
 

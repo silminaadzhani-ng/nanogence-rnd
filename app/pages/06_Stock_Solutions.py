@@ -2,7 +2,7 @@ import streamlit as st
 import datetime
 from sqlalchemy.orm import Session
 from app.database import get_db, init_db
-from app.models import StockSolutionBatch
+from app.models import StockSolutionBatch, RawMaterial
 
 # Ensure database is synced
 init_db()
@@ -20,18 +20,83 @@ CHEMICALS = {
     "NaOH": {"mw": 40.00, "type": "NaOH"}
 }
 
-tab1, tab2 = st.tabs(["➕ Prepare New Batch", "📚 Batch Library"])
+tab1, tab2, tab3 = st.tabs(["🏛️ Raw Material Inventory", "➕ Prepare Stock Solution", "📚 Stock Solution Library"])
 
 with tab1:
+    st.subheader("Manage Raw Materials")
+    
+    with st.expander("📥 Log New Received Material", expanded=False):
+        c1, c2 = st.columns(2)
+        with c1:
+            mat_name = st.selectbox("Material Name", options=list(CHEMICALS.keys()) + ["Other"])
+            if mat_name == "Other":
+                mat_name = st.text_input("Custom Material Name")
+            
+            brand = st.text_input("Brand / Supplier", value="Carl Roth")
+            lot = st.text_input("Lot / Batch Number")
+        
+        with c2:
+            received_date = st.date_input("Received Date", value=datetime.date.today())
+            qty = st.number_input("Initial Quantity (kg)", min_value=0.0, step=0.1, value=1.0)
+            purity = st.number_input("Purity (%)", min_value=0.1, max_value=100.0, value=99.0)
+        
+        notes = st.text_area("Additional Notes (e.g. Storage location)")
+        
+        if st.button("Log Material Receipt"):
+            try:
+                # Basic chem types
+                c_type = "Other"
+                if "Ca" in mat_name: c_type = "Ca"
+                elif "Si" in mat_name: c_type = "Si"
+                elif "PCE" in mat_name: c_type = "PCE"
+                elif "NaOH" in mat_name: c_type = "NaOH"
+
+                new_mat = RawMaterial(
+                    material_name=mat_name,
+                    chemical_type=c_type,
+                    brand=brand,
+                    lot_number=lot,
+                    received_date=datetime.datetime.combine(received_date, datetime.time.min),
+                    initial_quantity_kg=qty,
+                    remaining_quantity_kg=qty,
+                    purity_percent=purity,
+                    notes=notes
+                )
+                db.add(new_mat)
+                db.commit()
+                st.success(f"Logged receipt of {qty}kg {mat_name}")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+
+    st.divider()
+    st.subheader("Current Raw Material Stock")
+    materials = db.query(RawMaterial).order_by(RawMaterial.received_date.desc()).all()
+    if materials:
+        mat_data = []
+        for m in materials:
+            mat_data.append({
+                "Received": m.received_date.strftime("%Y-%m-%d"),
+                "Material": m.material_name,
+                "Brand": m.brand,
+                "Lot #": m.lot_number,
+                "Qty (kg)": m.remaining_quantity_kg,
+                "Purity %": m.purity_percent
+            })
+        st.dataframe(mat_data, use_container_width=True)
+    else:
+        st.info("No raw materials logged yet.")
+
+with tab2:
     st.subheader("Prepare Stock Solution")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        prep_date = st.date_input("Preparation Date", value=datetime.date.today())
+        prep_date = st.date_input("Preparation Date", value=datetime.date.today(), key="prep_date")
         
         chem_options = list(CHEMICALS.keys()) + ["Other (Custom)"]
-        selected_chem = st.selectbox("Chemical", options=chem_options)
+        selected_chem = st.selectbox("Chemical", options=chem_options, key="prep_chem")
         
         custom_name = ""
         custom_mw = 0.0
@@ -66,7 +131,7 @@ with tab1:
         batch_code = st.text_input("Batch Code", value=suggested_code)
         actual_mass = st.number_input("Actual Mass Weighed (g)", step=0.01, value=required_mass)
         operator = st.text_input("Operator", value="Silmina Adzhani")
-        notes = st.text_area("Notes")
+        notes = st.text_area("Notes", key="batch_notes")
 
     if st.button("Save Stock Batch"):
         if not batch_code:
@@ -90,7 +155,7 @@ with tab1:
             except Exception as e:
                 st.error(f"Error: {str(e)}")
 
-with tab2:
+with tab3:
     st.subheader("Inventory of Prepared Solutions")
     batches = db.query(StockSolutionBatch).order_by(StockSolutionBatch.created_at.desc()).all()
     
