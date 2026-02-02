@@ -24,7 +24,7 @@ with tab1:
     
     if selected_recipe_name:
         batch_ref = st.text_input("Lab Notebook Reference", placeholder="e.g. NB-2024-001")
-        operator = st.text_input("Operator Name", value="Lab Tech")
+        operator = st.text_input("Operator Name", value="Silmina Adzhani")
         
         if st.button("Start Batch"):
             if not batch_ref:

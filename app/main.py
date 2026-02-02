@@ -1,13 +1,13 @@
 import streamlit as st
 
 st.set_page_config(
-    page_title="Nanogence R&D Platform",
+    page_title="Nanogence R&D - Silmina Adzhani",
     page_icon="🧪",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-st.title("🧪 Nanogence C-S-H R&D Platform")
+st.title("🧪 Nanogence R&D - Silmina Adzhani")
 
 st.markdown("""
 ### Welcome to the R&D Data Platform
