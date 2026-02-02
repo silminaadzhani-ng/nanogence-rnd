@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 from datetime import datetime
+import pandas as pd
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.database import get_db, init_db
