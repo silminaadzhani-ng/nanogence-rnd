@@ -123,20 +123,10 @@ with tab2:
             operator = c_meta2.text_input("Operator Name", value="Silmina Adzhani")
             
             c_time1, c_time2 = st.columns(2)
-            m_date = c_time1.date_input("Measurement Date", value=datetime.date.today())
-            m_time = c_time2.time_input("Measurement Time", value=datetime.datetime.now().time())
+            measurement_date = c_time1.date_input("Measurement Date", value=datetime.date.today())
+            age_h = c_time2.number_input("Ageing Time (hours)", min_value=0.0, step=1.0, value=0.0, help="Manually enter the age of the sample in hours (e.g. 1, 2, 24)")
             
-            # Combine into timestamp
-            measurement_ts = datetime.datetime.combine(m_date, m_time)
-            
-            # Calculate Age relative to Recipe Creation (as requested: "from the recipe creation")
-            # Although scientific age is usually from synthesis, user asked for recipe creation.
-            age_h = 0.0
-            if sel_recipe_date:
-                diff = measurement_ts - sel_recipe_date
-                age_h = diff.total_seconds() / 3600.0
-            
-            st.info(f"💡 Calculated Age: **{age_h:.1f} hours** since recipe creation.")
+            measurement_ts = datetime.datetime.combine(measurement_date, datetime.datetime.now().time())
 
             st.markdown("#### General Properties")
             c1, c2, c3 = st.columns(3)
