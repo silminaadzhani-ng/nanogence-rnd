@@ -21,7 +21,8 @@ db: Session = next(get_db())
 CHEMICALS = {
     "Ca(NO3)2·4H2O": {"mw": 236.15, "type": "Ca"},
     "Na2SiO3·5H2O": {"mw": 212.14, "type": "Si"},
-    "NaOH": {"mw": 40.00, "type": "NaOH"}
+    "NaOH": {"mw": 40.00, "type": "NaOH"},
+    "PCE": {"mw": 1.0, "type": "PCE"}
 }
 
 tab_dash, tab1, tab2 = st.tabs(["📊 Dashboard", "🏛️ Raw Material Inventory", "🧪 Stock Solution Management"])

@@ -86,11 +86,7 @@ with tab1:
     with col2:
         st.subheader("📊 Mass Calculator (Real-time)")
         
-        cv1, cv2 = st.columns(2)
-        target_basis = cv1.selectbox("Target Basis", ["Total Volume (mL)", "Total Mass (g)"])
-        target_val = cv2.number_input("Target Value", min_value=1.0, value=400.0)
-        
-        pce_basis = st.selectbox("PCE Dosage Basis", ["% of Ca(NO3)2 Mass", "% of Total Batch Mass"])
+        target_val = st.number_input("Target Total Batch Mass (g)", min_value=1.0, value=400.0)
         
         exp_densities = st.expander("Solution Densities (g/mL)", expanded=False)
         d_ca = exp_densities.number_input("Ca Solution Density", value=1.150, format="%.3f")
@@ -106,22 +102,18 @@ with tab1:
         alpha = solids / 100.0
         pce_conc_factor = pce_conc / 100.0
         
-        if target_basis == "Total Mass (g)":
-            m_total = target_val
-        else:
-            if pce_basis == "% of Total Batch Mass":
-                delta = pce_dosage / 100.0
-            else:
-                delta = (pce_dosage / 100.0) * (alpha * ca_si * MW_CA / S) / pce_conc_factor
-
-            denom_pce = delta * (1.0 - (d_water / d_pce))
-            denom_mineral = (alpha / S) * ( ((d_si - d_water) / m_si) + (ca_si * (d_ca - d_water) / m_ca) )
-            denom = 1.0 - denom_pce - denom_mineral
-            m_total = (target_val * d_water) / denom
-
+        # Fixed to Total Mass (g)
+        m_total = target_val
+        
+        # Fixed to % of Total Batch Mass
+        mass_pce_sol = m_total * (pce_dosage / 100.0)
+        v_pce_ml = mass_pce_sol / d_pce
+        
+        # Calculate minerals based on target solids and remaining available mass
+        # Note: In C-S-H synthesis, we usually assume the target solids percentage 
+        # is the total mineral content (C-S-H phase) relative to total batch mass.
         n_si_mol = (m_total * alpha) / S
         n_ca_mol = n_si_mol * ca_si
-        m_ca_anhydrous = n_si_mol * ca_si * MW_CA
         
         v_si_ml = (n_si_mol * 1000) / m_si if m_si > 0 else 0
         v_ca_ml = (n_ca_mol * 1000) / m_ca if m_ca > 0 else 0
@@ -129,22 +121,9 @@ with tab1:
         mass_si_sol = v_si_ml * d_si
         mass_ca_sol = v_ca_ml * d_ca
         
-        if pce_basis == "% of Total Batch Mass":
-            mass_pce_sol = m_total * (pce_dosage / 100.0)
-        else:
-            mass_pce_sol = (m_ca_anhydrous * (pce_dosage / 100.0)) / pce_conc_factor
-        
-        v_pce_ml = mass_pce_sol / d_pce
-        
-        if target_basis == "Total Mass (g)":
-            mass_water = m_total - mass_si_sol - mass_ca_sol - mass_pce_sol
-            v_water_ml = mass_water / d_water
-            v_total = v_si_ml + v_ca_ml + v_pce_ml + v_water_ml
-        else:
-            v_total = target_val
-            v_water_ml = v_total - v_si_ml - v_ca_ml - v_pce_ml
-            mass_water = v_water_ml * d_water
-            m_total = mass_si_sol + mass_ca_sol + mass_pce_sol + mass_water
+        mass_water = m_total - mass_si_sol - mass_ca_sol - mass_pce_sol
+        v_water_ml = mass_water / d_water
+        v_total = v_si_ml + v_ca_ml + v_pce_ml + v_water_ml
 
         display_source_ca = ca_batch_id if ca_batch_id != "None" else source_ca
         display_source_si = si_batch_id if si_batch_id != "None" else source_si
