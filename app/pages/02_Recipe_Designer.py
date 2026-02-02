@@ -96,8 +96,7 @@ with tab1:
         
         target_val = st.number_input("Target Total Batch Mass (g)", min_value=1.0, value=415.0)
         
-        # PCE Dosage Basis Selection
-        pce_basis = st.selectbox("PCE Dosage Basis", ["% of Ca(NO3)2 Reactant Mass", "% of Total Batch Mass"], index=1)
+        
         
         exp_densities = st.expander("Solution Densities (g/mL)", expanded=False)
         d_ca = exp_densities.number_input("Ca Solution Density", value=1.401, format="%.3f")
@@ -131,15 +130,8 @@ with tab1:
         n_ca_mol = n_si_mol * ca_si
         m_ca_anhydrous = n_ca_mol * MW_CA
         
-        # 3. Calculate PCE Mass
-        if pce_basis == "% of Ca(NO3)2 Reactant Mass":
-             # Basis: PCE Solid Mass = X% of Anhydrous Ca Mass
-             mass_pce_solid = m_ca_anhydrous * (pce_dosage / 100.0)
-             mass_pce_sol = mass_pce_solid / pce_conc_factor
-        else:
-            # Basis: PCE Solution Mass = X% of Total Batch Mass
-            # This matches Trial a1 logic where 2% dosage = 8.28g (approx 2% of 414g)
-            mass_pce_sol = m_total * (pce_dosage / 100.0)
+        # 3. Calculate PCE Mass (Always % of Total Batch Mass)
+        mass_pce_sol = m_total * (pce_dosage / 100.0)
 
         # 4. Calculate Solution Volumes
         v_si_ml = (n_si_mol * 1000) / m_si if m_si > 0 else 0
