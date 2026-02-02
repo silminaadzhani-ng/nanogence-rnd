@@ -25,12 +25,26 @@ with tab1:
     col1, col2 = st.columns(2)
     
     with col1:
-        chem_key = st.selectbox("Chemical", options=list(CHEMICALS.keys()))
-        target_m = st.number_input("Target Molarity (mol/L)", min_value=0.01, step=0.01, value=1.50 if "Ca" in chem_key else (0.75 if "Si" in chem_key else 5.0))
+        chem_options = list(CHEMICALS.keys()) + ["Other (Custom)"]
+        selected_chem = st.selectbox("Chemical", options=chem_options)
+        
+        custom_name = ""
+        custom_mw = 0.0
+        
+        if selected_chem == "Other (Custom)":
+            custom_name = st.text_input("Chemical Name", placeholder="e.g. Al2(SO4)3")
+            custom_mw = st.number_input("MW-hydrate (g/mol)", min_value=1.0, step=0.01, value=100.0)
+            target_m = st.number_input("Target Molarity (mol/L)", min_value=0.01, step=0.01, value=1.0)
+            mw = custom_mw
+            chem_type = "Other"
+        else:
+            target_m = st.number_input("Target Molarity (mol/L)", min_value=0.01, step=0.01, value=1.50 if "Ca" in selected_chem else (0.75 if "Si" in selected_chem else 5.0))
+            mw = CHEMICALS[selected_chem]["mw"]
+            chem_type = CHEMICALS[selected_chem]["type"]
+            
         target_v = st.number_input("Target Volume (mL)", min_value=1.0, step=10.0, value=1000.0)
         
         # Calculation Logic
-        mw = CHEMICALS[chem_key]["mw"]
         required_mass = target_m * (target_v / 1000.0) * mw
         
         st.metric("Required Mass (g)", f"{required_mass:.2f} g")
@@ -38,8 +52,7 @@ with tab1:
     with col2:
         # Automated Batch Code Logic
         today_str = datetime.date.today().strftime("%Y%m%d")
-        chem_type = CHEMICALS[chem_key]["type"]
-        prefix = f"{chem_type}-{today_str}-"
+        prefix = f"{chem_type[:2].upper()}-{today_str}-"
         
         # Search for existing batches today to get count
         count = db.query(StockSolutionBatch).filter(StockSolutionBatch.code.like(f"{prefix}%")).count()
@@ -55,9 +68,10 @@ with tab1:
             st.error("Batch Code is required.")
         else:
             try:
+                final_chem_type = chem_type if selected_chem != "Other (Custom)" else f"Other ({custom_name})"
                 new_batch = StockSolutionBatch(
                     code=batch_code,
-                    chemical_type=CHEMICALS[chem_key]["type"],
+                    chemical_type=final_chem_type,
                     molarity=target_m,
                     target_volume_ml=target_v,
                     actual_mass_g=actual_mass,
