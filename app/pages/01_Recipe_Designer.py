@@ -125,12 +125,7 @@ with st.form("recipe_form"):
         rate_si = c2.number_input("Si Addition Rate (mL/min)", value=0.5)
         
         st.caption("Synthesis Procedure")
-        default_steps = [
-            {"step": 1, "description": "Dissolve PCX in DI water", "duration_min": 10},
-            {"step": 2, "description": "Adjust pH with NaOH", "duration_min": 5},
-            {"step": 3, "description": "Start simultaneous dropwise addition", "duration_min": 60}
-        ]
-        sequence_json = st.text_area("Procedure Steps (JSON)", value=json.dumps(default_steps, indent=2), height=150)
+        procedure_notes = st.text_area("Procedure Notes", placeholder="e.g. 1. Dissolve PCX...\n2. Start feeding...", height=150)
         
         # Prediction
         pred = predict_strength(ca_si, m_ca, solids, pce_dosage)
@@ -144,7 +139,7 @@ with st.form("recipe_form"):
             st.error("Recipe Name is required.")
         else:
             try:
-                proc_config = {"steps": json.loads(sequence_json)}
+                proc_config = {"procedure": procedure_notes}
                 sources = {"ca": source_ca, "si": source_si, "pce": source_pce}
                 new_recipe = Recipe(
                     name=name,
