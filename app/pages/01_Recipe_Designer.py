@@ -187,29 +187,29 @@ if st.button("💾 Save Recipe"):
 st.divider()
 st.subheader("📚 Recipe Library")
 
-# Search and Filters
-c1, c2, c3 = st.columns([2, 1, 1])
-search_query = c1.text_input("🔍 Search Recipe Name", placeholder="e.g. Trial A")
-series_filter = c2.multiselect("Filter Series", options=["Series A", "Series B", "Series C", "Series D"], default=[])
+# Fetch all unique values for filters
+all_recipes = db.query(Recipe).all()
+unique_casi = sorted(list(set(r.ca_si_ratio for r in all_recipes)))
+unique_solids = sorted(list(set(r.total_solid_content for r in all_recipes)))
 
+# Filter Bar (Header-based)
+c1, c2, c3, c4 = st.columns([2, 1, 1, 1])
+search_query = c1.text_input("🔍 Search Name", placeholder="e.g. Trial A1")
+f_casi = c2.multiselect("Ca/Si Head", options=unique_casi)
+f_solids = c3.multiselect("Solids % Head", options=unique_solids)
+
+# Build Query
 query = db.query(Recipe).order_by(Recipe.name.asc())
 
 if search_query:
     query = query.filter(Recipe.name.ilike(f"%{search_query}%"))
-
-# Filter by series (using naming convention or Ca/Si ratio as proxy)
-# ... (rest of filtering logic)
-if series_filter:
-    series_conditions = []
-    if "Series A" in series_filter: series_conditions.append(Recipe.ca_si_ratio == 1.25)
-    if "Series B" in series_filter: series_conditions.append(Recipe.ca_si_ratio == 1.50)
-    if "Series C" in series_filter: series_conditions.append(Recipe.ca_si_ratio == 1.75)
-    if "Series D" in series_filter: series_conditions.append(Recipe.ca_si_ratio == 2.00)
-    from sqlalchemy import or_
-    query = query.filter(or_(*series_conditions))
+if f_casi:
+    query = query.filter(Recipe.ca_si_ratio.in_(f_casi))
+if f_solids:
+    query = query.filter(Recipe.total_solid_content.in_(f_solids))
 
 recipes = query.all()
-c3.metric("Total Recipes", len(recipes))
+c4.metric("Total Recipes", len(recipes))
 
 if recipes:
     data = []
