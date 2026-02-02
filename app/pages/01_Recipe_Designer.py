@@ -207,3 +207,13 @@ if recipes:
             "Si Rate": r.si_addition_rate,
         })
     st.dataframe(data, use_container_width=True)
+    
+    with st.expander("🗑️ Delete Recipes", expanded=False):
+        recipe_to_delete = st.selectbox("Select Recipe to Remove", options=[r.name for r in recipes], key="del_recipe")
+        if st.button("Confirm Delete", type="primary"):
+            target = db.query(Recipe).filter(Recipe.name == recipe_to_delete).first()
+            if target:
+                db.delete(target)
+                db.commit()
+                st.success(f"Recipe '{recipe_to_delete}' deleted.")
+                st.rerun()
