@@ -33,15 +33,17 @@ with st.form("recipe_form"):
         name = st.text_input("Recipe Name", placeholder="e.g. CSH-Seed-Standard-2024")
         
         c1, c2 = st.columns(2)
-        ca_si = c1.number_input("Ca/Si Ratio", min_value=0.5, max_value=2.5, step=0.05, value=1.0)
-        solids = c2.number_input("Total Solid Content (%)", min_value=1.0, max_value=50.0, value=10.0)
+        ca_si = c1.number_input("Ca/Si Ratio", min_value=0.0, max_value=2.5, step=0.05, value=1.0)
+        solids = c2.number_input("Target Solid Content (%)", min_value=0.1, max_value=50.0, value=5.0)
         
         c3, c4 = st.columns(2)
-        m_ca = c3.number_input("Ca Molarity (mol/L)", min_value=0.1, max_value=5.0, step=0.1, value=1.5)
-        m_si = c4.number_input("Si Molarity (mol/L)", min_value=0.1, max_value=5.0, step=0.1, value=0.75)
+        m_ca = c3.number_input("Ca Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=1.5)
+        m_si = c4.number_input("Si Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=0.75)
         
-        pce = st.number_input("PCE Content (wt.%)", min_value=0.0, max_value=5.0, step=0.1, value=0.5)
-        
+        c5, c6 = st.columns(2)
+        pce_dosage = c5.number_input("PCE Dosage (wt.% of solids)", min_value=0.0, max_value=50.0, step=0.1, value=2.0)
+        pce_conc = c6.number_input("PCE Solution Conc. (wt.%)", min_value=1.0, max_value=100.0, value=50.0)
+
         st.subheader("🧪 Stock Solution Source")
         # Fetch available batches
         ca_batches = db.query(StockSolutionBatch).filter(StockSolutionBatch.chemical_type == "Ca").all()
@@ -54,6 +56,59 @@ with st.form("recipe_form"):
         si_batch_id = st.selectbox("Si Stock Batch", options=["None"] + list(si_opts.keys()))
 
     with col2:
+        st.subheader("📊 Mass Calculator (Real-time)")
+        target_total_mass = st.number_input("Target Total Batch Mass (g)", min_value=1.0, value=400.0)
+        
+        # Densities (g/mL) - often needed for volume -> mass conversion
+        # We can use defaults or let user override
+        exp_densities = st.expander("Solution Densities (g/mL)", expanded=False)
+        d_ca = exp_densities.number_input("Ca Solution Density", value=1.2, step=0.01)
+        d_si = exp_densities.number_input("Si Solution Density", value=1.1, step=0.01)
+        
+        # Calculation Logic
+        target_solids_g = (solids / 100.0) * target_total_mass
+        
+        # MW assumptions for yield calculation (simplified stoichiometric yield)
+        # Assuming C-S-H (C-S-H I/II average)
+        # Yield is driven by Si (limiting) + Ca + OH
+        # For simplify: Moles Si = target_solids_g / (MW_CSH_equivalent)
+        # But user gave exact masses in example. Let's use a simpler "Scaling" approach if possible.
+        # Fixed logic from user example:
+        # If we know Ca/Si, Molarity Si, Molarity Ca:
+        # n_si = volume_si * m_si
+        # n_ca = n_si * ca_si
+        # volume_ca = n_ca / m_ca
+        # volume_si = ?
+        
+        # Alternative: We solve for volume_si based on the fact that 
+        # m_solids = m_csh + m_pce_solid
+        # This gets complex without knowing CSH chemistry.
+        # User example: 415g total, 5% solid -> ~20g solids.
+        # If we use the provided masses as a baseline and scale:
+        pce_mass_g = (pce_dosage / 100.0) * target_solids_g / (pce_conc / 100.0)
+        
+        # Heuristic: 1 mole of Si roughly contributes ~120-150g to CSH solids depending on hydration
+        mw_csh_per_si = 75 + ca_si * 56 + 18 # Simplified Si + Ca + H2O
+        moles_si_needed = (target_solids_g - (pce_dosage/100.0)*target_solids_g) / mw_csh_per_si
+        
+        v_si_ml = moles_si_needed * 1000 / m_si if m_si > 0 else 0
+        v_ca_ml = (moles_si_needed * ca_si) * 1000 / m_ca if m_ca > 0 else 0
+        
+        mass_si_sol = v_si_ml * d_si
+        mass_ca_sol = v_ca_ml * d_ca
+        mass_pce_sol = pce_mass_g
+        mass_water = target_total_mass - mass_si_sol - mass_ca_sol - mass_pce_sol
+        
+        calc_data = [
+            {"Ingredient": "Na2SiO3 Solution", "Source": "Stock Si", "Conc.": f"{m_si} M", "Mass (g)": f"{mass_si_sol:.2f}"},
+            {"Ingredient": "Ca(NO3)2 Solution", "Source": "Stock Ca", "Conc.": f"{m_ca} M", "Mass (g)": f"{mass_ca_sol:.2f}"},
+            {"Ingredient": "PCE Solution", "Source": "Cromogenia", "Conc.": f"{pce_conc}%", "Mass (g)": f"{mass_pce_sol:.2f}"},
+            {"Ingredient": "DI Water", "Source": "DI", "Conc.": "-", "Mass (g)": f"{mass_water:.2f}"},
+            {"Ingredient": "TOTAL", "Source": "-", "Conc.": "-", "Mass (g)": f"{target_total_mass:.2f}"},
+        ]
+        st.table(calc_data)
+
+        st.divider()
         st.subheader("Process Parameters")
         c1, c2 = st.columns(2)
         rate_ca = c1.number_input("Ca Addition Rate (mL/min)", value=0.5)
@@ -87,7 +142,7 @@ with st.form("recipe_form"):
                     molarity_ca_no3=m_ca,
                     molarity_na2sio3=m_si,
                     total_solid_content=solids,
-                    pce_content_wt=pce,
+                    pce_content_wt=pce_dosage,
                     ca_addition_rate=rate_ca,
                     si_addition_rate=rate_si,
                     ca_stock_batch_id=ca_opts.get(ca_batch_id),
