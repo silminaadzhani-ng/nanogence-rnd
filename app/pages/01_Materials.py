@@ -88,32 +88,32 @@ with tab1:
         
         df_materials = pd.DataFrame(mat_data)
         
-        # Enable single-row selection in the dataframe
         event = st.dataframe(
             df_materials, 
             use_container_width=True, 
             hide_index=True,
             on_select="rerun",
-            selection_mode="single-row"
+            selection_mode="multi-row"
         )
         
-        # Check if a row is selected
         selected_rows = event.selection.rows
         if selected_rows:
-            idx = selected_rows[0]
-            selected_mat = mat_data[idx]
-            st.info(f"📍 Selected: **{selected_mat['Material']}** (Lot: {selected_mat['Lot #']})")
+            st.info(f"📍 Selected {len(selected_rows)} items for action.")
             
-            if st.button("🗑️ Delete Selected Material", type="primary"):
-                target = db.query(RawMaterial).filter(
-                    RawMaterial.material_name == selected_mat['Material'], 
-                    RawMaterial.lot_number == selected_mat['Lot #']
-                ).first()
-                if target:
-                    db.delete(target)
-                    db.commit()
-                    st.success(f"Material {selected_mat['Material']} deleted.")
-                    st.rerun()
+            if st.button("🗑️ Delete Selected Materials", type="primary"):
+                deleted_count = 0
+                for idx in selected_rows:
+                    selected_mat = mat_data[idx]
+                    target = db.query(RawMaterial).filter(
+                        RawMaterial.material_name == selected_mat['Material'], 
+                        RawMaterial.lot_number == selected_mat['Lot #']
+                    ).first()
+                    if target:
+                        db.delete(target)
+                        deleted_count += 1
+                db.commit()
+                st.success(f"Successfully deleted {deleted_count} materials.")
+                st.rerun()
     else:
         st.info("No raw materials logged yet.")
 
@@ -200,22 +200,24 @@ with tab2:
                 use_container_width=True, 
                 hide_index=True,
                 on_select="rerun",
-                selection_mode="single-row",
+                selection_mode="multi-row",
                 key="df_ss"
             )
             
             selected_ss_rows = event_ss.selection.rows
             if selected_ss_rows:
-                ss_idx = selected_ss_rows[0]
-                selected_ss = ss_data[ss_idx]
-                st.info(f"📍 Selected: **{selected_ss['Code']}**")
+                st.info(f"📍 Selected {len(selected_ss_rows)} batches for action.")
                 
-                if st.button("🗑️ Delete Selected Batch", type="primary"):
-                    target = db.query(StockSolutionBatch).filter(StockSolutionBatch.code == selected_ss['Code']).first()
-                    if target:
-                        db.delete(target)
-                        db.commit()
-                        st.success(f"Batch {selected_ss['Code']} deleted.")
-                        st.rerun()
+                if st.button("🗑️ Delete Selected Batches", type="primary"):
+                    deleted_count = 0
+                    for ss_idx in selected_ss_rows:
+                        selected_ss = ss_data[ss_idx]
+                        target = db.query(StockSolutionBatch).filter(StockSolutionBatch.code == selected_ss['Code']).first()
+                        if target:
+                            db.delete(target)
+                            deleted_count += 1
+                    db.commit()
+                    st.success(f"Successfully deleted {deleted_count} batches.")
+                    st.rerun()
         else:
             st.info("No active stock solutions found.")
