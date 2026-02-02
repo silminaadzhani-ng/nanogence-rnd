@@ -54,4 +54,13 @@ def init_db():
         with engine.connect() as conn:
             if "preparation_date" not in cols:
                 conn.execute(text("ALTER TABLE stock_solution_batches ADD COLUMN preparation_date DATETIME"))
+            if "raw_material_id" not in cols:
+                conn.execute(text("ALTER TABLE stock_solution_batches ADD COLUMN raw_material_id VARCHAR"))
+            conn.commit()
+
+    if "raw_materials" in inspector.get_table_names():
+        cols = [c["name"] for c in inspector.get_columns("raw_materials")]
+        with engine.connect() as conn:
+            if "molecular_weight" not in cols:
+                conn.execute(text("ALTER TABLE raw_materials ADD COLUMN molecular_weight FLOAT"))
             conn.commit()

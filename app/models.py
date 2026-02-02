@@ -17,6 +17,7 @@ class RawMaterial(Base):
     expiry_date = Column(DateTime, nullable=True)
     initial_quantity_kg = Column(Float)
     remaining_quantity_kg = Column(Float)
+    molecular_weight = Column(Float, nullable=True)
     purity_percent = Column(Float, default=99.0)
     notes = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -34,6 +35,10 @@ class StockSolutionBatch(Base):
     preparation_date = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
     notes = Column(String)
+    raw_material_id = Column(UUID(as_uuid=True), ForeignKey('raw_materials.id'), nullable=True)
+
+    # Relationships
+    raw_material = relationship("RawMaterial")
 
     # Relationships
     recipes_ca = relationship("Recipe", foreign_keys="Recipe.ca_stock_batch_id", back_populates="ca_stock_batch")

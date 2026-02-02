@@ -13,7 +13,7 @@ st.markdown("# 🧪 Raw materials and stock solution management")
 
 db: Session = next(get_db())
 
-# Predefined Chemical Metadata
+# Predefined Chemical Metadata (Defaults)
 CHEMICALS = {
     "Ca(NO3)2·4H2O": {"mw": 236.15, "type": "Ca"},
     "Na2SiO3·5H2O": {"mw": 212.14, "type": "Si"},
@@ -32,10 +32,14 @@ with tab1:
             if mat_name == "Other":
                 mat_name = st.text_input("Custom Material Name")
             
+            # Auto-suggest MW from defaults or allow manual entry
+            default_mw = CHEMICALS.get(mat_name, {}).get("mw", 100.0)
+            mw_input = st.number_input("Molecular Weight (hydrate basis, g/mol)", min_value=0.1, value=default_mw, format="%.2f")
+            
             brand = st.text_input("Brand / Supplier", value="Carl Roth")
-            lot = st.text_input("Lot / Batch Number")
         
         with c2:
+            lot = st.text_input("Lot / Batch Number")
             received_date = st.date_input("Received Date", value=datetime.date.today())
             qty = st.number_input("Initial Quantity (kg)", min_value=0.0, step=0.1, value=1.0)
             purity = st.number_input("Purity (%)", min_value=0.1, max_value=100.0, value=99.0)
@@ -44,7 +48,6 @@ with tab1:
         
         if st.button("Log Material Receipt"):
             try:
-                # Basic chem types
                 c_type = "Other"
                 if "Ca" in mat_name: c_type = "Ca"
                 elif "Si" in mat_name: c_type = "Si"
@@ -56,6 +59,7 @@ with tab1:
                     chemical_type=c_type,
                     brand=brand,
                     lot_number=lot,
+                    molecular_weight=mw_input,
                     received_date=datetime.datetime.combine(received_date, datetime.time.min),
                     initial_quantity_kg=qty,
                     remaining_quantity_kg=qty,
@@ -76,12 +80,13 @@ with tab1:
         mat_data = []
         for m in materials:
             mat_data.append({
-                "Received": m.received_date.strftime("%Y-%m-%d"),
+                "ID": str(m.id)[:8],
                 "Material": m.material_name,
-                "Brand": m.brand,
                 "Lot #": m.lot_number,
+                "MW": m.molecular_weight,
                 "Qty (kg)": m.remaining_quantity_kg,
-                "Purity %": m.purity_percent
+                "Brand": m.brand,
+                "Received": m.received_date.strftime("%Y-%m-%d")
             })
         st.dataframe(mat_data, use_container_width=True)
     else:
@@ -90,41 +95,35 @@ with tab1:
 with tab2:
     st.subheader("Prepare Stock Solution")
     
+    # Fetch RM options
+    rm_list = db.query(RawMaterial).all()
+    rm_options = {f"{m.material_name} (Lot: {m.lot_number})": m.id for m in rm_list}
+    
     col1, col2 = st.columns(2)
     
     with col1:
         prep_date = st.date_input("Preparation Date", value=datetime.date.today(), key="prep_date")
         
-        chem_options = list(CHEMICALS.keys()) + ["Other (Custom)"]
-        selected_chem = st.selectbox("Chemical", options=chem_options, key="prep_chem")
+        selected_rm_key = st.selectbox("Source Raw Material", options=list(rm_options.keys()), help="Select from existing inventory")
+        selected_rm = db.query(RawMaterial).filter(RawMaterial.id == rm_options[selected_rm_key]).first()
         
-        custom_name = ""
-        custom_mw = 0.0
-        
-        if selected_chem == "Other (Custom)":
-            custom_name = st.text_input("Chemical Name", placeholder="e.g. Al2(SO4)3")
-            custom_mw = st.number_input("MW-hydrate (g/mol)", min_value=1.0, step=0.01, value=100.0)
-            target_m = st.number_input("Target Molarity (mol/L)", min_value=0.01, step=0.01, value=1.0)
-            mw = custom_mw
-            chem_type = "Other"
-        else:
-            target_m = st.number_input("Target Molarity (mol/L)", min_value=0.01, step=0.01, value=1.50 if "Ca" in selected_chem else (0.75 if "Si" in selected_chem else 5.0))
-            mw = CHEMICALS[selected_chem]["mw"]
-            chem_type = CHEMICALS[selected_chem]["type"]
-            
+        target_m = st.number_input("Target Molarity (mol/L)", min_value=0.01, step=0.01, value=1.50 if "Ca" in selected_rm.chemical_type else 0.75)
         target_v = st.number_input("Target Volume (mL)", min_value=1.0, step=10.0, value=1000.0)
         
-        # Calculation Logic
-        required_mass = target_m * (target_v / 1000.0) * mw
+        # Calculation Logic using RM molecular weight
+        mw = selected_rm.molecular_weight if selected_rm.molecular_weight else 100.0
+        # Account for purity? Usually, mass_req = n * MW / Purity
+        required_mass = target_m * (target_v / 1000.0) * mw / (selected_rm.purity_percent / 100.0)
         
         st.metric("Required Mass (g)", f"{required_mass:.2f} g")
+        st.caption(f"Based on MW: {mw} g/mol and Purity: {selected_rm.purity_percent}%")
         
     with col2:
         # Automated Batch Code Logic
+        chem_type = selected_rm.chemical_type
         date_str = prep_date.strftime("%Y%m%d")
         prefix = f"{chem_type[:2].upper()}-{date_str}-"
         
-        # Search for existing batches today to get count
         count = db.query(StockSolutionBatch).filter(StockSolutionBatch.code.like(f"{prefix}%")).count()
         suggested_code = f"{prefix}{count + 1:02d}"
         
@@ -138,20 +137,20 @@ with tab2:
             st.error("Batch Code is required.")
         else:
             try:
-                final_chem_type = chem_type if selected_chem != "Other (Custom)" else f"Other ({custom_name})"
                 new_batch = StockSolutionBatch(
                     code=batch_code,
-                    chemical_type=final_chem_type,
+                    chemical_type=selected_rm.chemical_type,
                     molarity=target_m,
                     target_volume_ml=target_v,
                     actual_mass_g=actual_mass,
                     preparation_date=datetime.datetime.combine(prep_date, datetime.time.min),
+                    raw_material_id=selected_rm.id,
                     operator=operator,
                     notes=notes
                 )
                 db.add(new_batch)
                 db.commit()
-                st.success(f"Batch {batch_code} saved!")
+                st.success(f"Batch {batch_code} saved! Link to Lot {selected_rm.lot_number} established.")
             except Exception as e:
                 st.error(f"Error: {str(e)}")
 
@@ -162,12 +161,14 @@ with tab3:
     if batches:
         data = []
         for b in batches:
+            source_lot = b.raw_material.lot_number if b.raw_material else "N/A"
             data.append({
                 "Code": b.code,
                 "Type": b.chemical_type,
                 "Molarity": b.molarity,
                 "Volume (mL)": b.target_volume_ml,
                 "Mass (g)": b.actual_mass_g,
+                "Source Lot": source_lot,
                 "Prep Date": b.preparation_date.strftime("%Y-%m-%d") if b.preparation_date else "N/A",
                 "Operator": b.operator
             })
