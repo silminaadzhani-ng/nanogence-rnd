@@ -1,4 +1,9 @@
 import streamlit as st
+import sys
+import os
+
+# Ensure the project root is in sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 st.set_page_config(
     page_title="Nanogence R&D Platform",
