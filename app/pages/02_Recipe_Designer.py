@@ -469,9 +469,10 @@ if is_library:
             cols[5].write(f"{r.target_ph}")
             cols[6].write(f"{r.pce_content_wt:.1f}%")
             
-            # Actions
-            b_edit = cols[7].button("✏️", key=f"edit_btn_{r.id}", help="Edit this recipe")
-            b_del = cols[7].button("🗑️", key=f"del_btn_{r.id}", help="Delete this recipe")
+            # Actions (Side-by-side)
+            a_col1, a_col2 = cols[7].columns(2)
+            b_edit = a_col1.button("✏️", key=f"edit_btn_{r.id}", help="Edit this recipe")
+            b_del = a_col2.button("🗑️", key=f"del_btn_{r.id}", help="Delete this recipe")
 
             if b_edit:
                 st.session_state.edit_recipe_id = r.id
