@@ -56,15 +56,15 @@ with tab1:
         name = st.text_input("Recipe Name", placeholder="e.g. CSH-Seed-Standard-2024")
         
         c1, c2 = st.columns(2)
-        ca_si = c1.number_input("Ca/Si Ratio", min_value=0.0, max_value=2.5, step=0.05, value=1.25)
+        ca_si = c1.number_input("Ca/Si Ratio", min_value=0.0, max_value=2.5, step=0.05, value=1.50)
         solids = c2.number_input("Target Solid Content (%)", min_value=0.1, max_value=50.0, value=5.0)
         
         c3, c4 = st.columns(2)
-        m_ca = c3.number_input("Ca(NO3)2 Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=4.0)
-        m_si = c4.number_input("Na2SiO3 Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=2.0)
+        m_ca = c3.number_input("Ca(NO3)2 Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=1.5)
+        m_si = c4.number_input("Na2SiO3 Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=0.75)
         
         c5, c6 = st.columns(2)
-        pce_dosage = c5.number_input("PCE Dosage (%)", min_value=0.0, max_value=100.0, step=0.1, value=20.0)
+        pce_dosage = c5.number_input("PCE Dosage (%)", min_value=0.0, max_value=100.0, step=0.1, value=2.0)
         pce_conc = c6.number_input("PCE Solution Conc. (wt.%)", min_value=1.0, max_value=100.0, value=50.0)
 
         st.subheader("🏢 Material Sourcing")
@@ -89,7 +89,7 @@ with tab1:
         target_val = st.number_input("Target Total Batch Mass (g)", min_value=1.0, value=415.0)
         
         # PCE Dosage Basis Selection
-        pce_basis = st.selectbox("PCE Dosage Basis", ["% of Ca(NO3)2 Reactant Mass", "% of Total Batch Mass"], index=0)
+        pce_basis = st.selectbox("PCE Dosage Basis", ["% of Ca(NO3)2 Reactant Mass", "% of Total Batch Mass"], index=1)
         
         exp_densities = st.expander("Solution Densities (g/mL)", expanded=False)
         d_ca = exp_densities.number_input("Ca Solution Density", value=1.401, format="%.3f")
