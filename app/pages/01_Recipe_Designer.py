@@ -190,29 +190,18 @@ with tab1:
 with tab2:
     st.subheader("📚 Recipe Library")
 
-    # Fetch all unique values for filters
-    all_recipes = db.query(Recipe).all()
-    unique_casi = sorted(list(set(r.ca_si_ratio for r in all_recipes))) if all_recipes else []
-    unique_solids = sorted(list(set(r.total_solid_content for r in all_recipes))) if all_recipes else []
-
-    # Filter Bar (Header-based)
-    f1, f2, f3, f4 = st.columns([2, 1, 1, 1])
-    search_query = f1.text_input("🔍 Search Name", placeholder="e.g. Trial A1", key="lib_search")
-    f_casi = f2.multiselect("Ca/Si Head", options=unique_casi, key="lib_casi")
-    f_solids = f3.multiselect("Solids % Head", options=unique_solids, key="lib_solids")
+    # Filter Bar
+    f1, f2 = st.columns([3, 1])
+    search_query = f1.text_input("🔍 Search Recipe Name", placeholder="e.g. Trial A1", key="lib_search")
 
     # Build Query
     query = db.query(Recipe).order_by(Recipe.name.asc())
 
     if search_query:
         query = query.filter(Recipe.name.ilike(f"%{search_query}%"))
-    if f_casi:
-        query = query.filter(Recipe.ca_si_ratio.in_(f_casi))
-    if f_solids:
-        query = query.filter(Recipe.total_solid_content.in_(f_solids))
 
     recipes = query.all()
-    f4.metric("Total Recipes", len(recipes))
+    f2.metric("Total Recipes", len(recipes))
 
     if recipes:
         lib_data = []
