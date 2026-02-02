@@ -88,6 +88,25 @@ with tab1:
     else:
         st.info("No raw materials logged yet.")
 
+    if materials:
+        with st.expander("🗑️ Delete Raw Material", expanded=False):
+            mat_to_delete = st.selectbox(
+                "Select Material to Remove", 
+                options=[f"{m.material_name} (Lot: {m.lot_number})" for m in materials],
+                key="del_mat_select"
+            )
+            if st.button("Confirm Delete Material", type="primary"):
+                # Parse back to get lot number and name
+                # Simple lookup by index or name/lot combo
+                selected_name = mat_to_delete.split(" (Lot: ")[0]
+                selected_lot = mat_to_delete.split(" (Lot: ")[1].rstrip(")")
+                target = db.query(RawMaterial).filter(RawMaterial.material_name == selected_name, RawMaterial.lot_number == selected_lot).first()
+                if target:
+                    db.delete(target)
+                    db.commit()
+                    st.success(f"Material {mat_to_delete} deleted.")
+                    st.rerun()
+
 with tab2:
     st.subheader("Prepare and Manage Stock Solutions")
     
