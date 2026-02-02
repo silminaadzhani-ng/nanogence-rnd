@@ -69,53 +69,48 @@ with col2:
     exp_densities = st.expander("Solution Densities (g/mL)", expanded=False)
     d_ca = exp_densities.number_input("Ca Solution Density", value=1.2, step=0.01)
     d_si = exp_densities.number_input("Si Solution Density", value=1.1, step=0.01)
-    
-    # Calculation Logic
-    target_solids_g = (solids / 100.0) * target_total_mass
-    
-    # MW assumptions for yield calculation (simplified stoichiometric yield)
-    # Assuming C-S-H (C-S-H I/II average)
-    # Yield is driven by Si (limiting) + Ca + OH
-    # For simplify: Moles Si = target_solids_g / (MW_CSH_equivalent)
-    # But user gave exact masses in example. Let's use a simpler "Scaling" approach if possible.
-    # Fixed logic from user example:
-    # If we know Ca/Si, Molarity Si, Molarity Ca:
-    # n_si = volume_si * m_si
-    # n_ca = n_si * ca_si
-    # volume_ca = n_ca / m_ca
-    # volume_si = ?
-    
-    # Alternative: We solve for volume_si based on the fact that 
-    # m_solids = m_csh + m_pce_solid
-    # This gets complex without knowing CSH chemistry.
-    # User example: 415g total, 5% solid -> ~20g solids.
-    # If we use the provided masses as a baseline and scale:
-    pce_mass_g = (pce_dosage / 100.0) * target_solids_g / (pce_conc / 100.0)
-    
-    # Heuristic: 1 mole of Si roughly contributes ~120-150g to CSH solids depending on hydration
-    mw_csh_per_si = 75 + ca_si * 56 + 18 # Simplified Si + Ca + H2O
-    moles_si_needed = (target_solids_g - (pce_dosage/100.0)*target_solids_g) / mw_csh_per_si
-    
-    v_si_ml = moles_si_needed * 1000 / m_si if m_si > 0 else 0
-    v_ca_ml = (moles_si_needed * ca_si) * 1000 / m_ca if m_ca > 0 else 0
-    
-    mass_si_sol = v_si_ml * d_si
-    mass_ca_sol = v_ca_ml * d_ca
-    mass_pce_sol = pce_mass_g
-    mass_water = target_total_mass - mass_si_sol - mass_ca_sol - mass_pce_sol
-    
-    # Determine display sources (Batch code vs Brand)
-    display_source_ca = ca_batch_id if ca_batch_id != "None" else source_ca
-    display_source_si = si_batch_id if si_batch_id != "None" else source_si
+        # Lab Constants (Anhydrous Precursor MWs)
+        MW_SI = 122.06  # Na2SiO3
+        MW_CA = 164.09  # Ca(NO3)2
+        
+        # 1. Target Mineral Mass from Solid Content %
+        target_mineral_solids_g = (solids / 100.0) * target_total_mass
+        
+        # 2. Stoichiometry: Find Moles Si (n_si)
+        # Weight_min = n_si * MW_SI + (n_si * Ca_Si) * MW_CA
+        # n_si = Weight_min / (MW_SI + Ca_Si * MW_CA)
+        n_si_mol = target_mineral_solids_g / (MW_SI + ca_si * MW_CA) if (MW_SI + ca_si * MW_CA) > 0 else 0
+        n_ca_mol = n_si_mol * ca_si
+        
+        # 3. Required solution volumes
+        v_si_ml = (n_si_mol * 1000) / m_si if m_si > 0 else 0
+        v_ca_ml = (n_ca_mol * 1000) / m_ca if m_ca > 0 else 0
+        
+        # 4. Convert volumes to masses using densities
+        mass_si_sol = v_si_ml * d_si
+        mass_ca_sol = v_ca_ml * d_ca
+        
+        # 5. PCE Mass (dosage is % of total batch mass)
+        mass_pce_sol = target_total_mass * (pce_dosage / 100.0)
+        
+        # 6. DI Water (balance)
+        mass_water = target_total_mass - mass_si_sol - mass_ca_sol - mass_pce_sol
+        
+        # UI Table
+        display_source_ca = ca_batch_id if ca_batch_id != "None" else source_ca
+        display_source_si = si_batch_id if si_batch_id != "None" else source_si
 
-    calc_data = [
-        {"Ingredient": "Na2SiO3 Solution", "Source": display_source_si, "Conc.": f"{m_si} M", "Mass (g)": f"{mass_si_sol:.2f}"},
-        {"Ingredient": "Ca(NO3)2 Solution", "Source": display_source_ca, "Conc.": f"{m_ca} M", "Mass (g)": f"{mass_ca_sol:.2f}"},
-        {"Ingredient": "PCE Solution", "Source": source_pce, "Conc.": f"{pce_conc}%", "Mass (g)": f"{mass_pce_sol:.2f}"},
-        {"Ingredient": "DI Water", "Source": "DI", "Conc.": "-", "Mass (g)": f"{mass_water:.2f}"},
-        {"Ingredient": "TOTAL", "Source": "-", "Conc.": "-", "Mass (g)": f"{target_total_mass:.2f}"},
-    ]
-    st.table(calc_data)
+        calc_data = [
+            {"Ingredient": "Na2SiO3 Solution", "Source": display_source_si, "Conc.": f"{m_si} M", "Mass (g)": f"{mass_si_sol:.2f}"},
+            {"Ingredient": "Ca(NO3)2 Solution", "Source": display_source_ca, "Conc.": f"{m_ca} M", "Mass (g)": f"{mass_ca_sol:.2f}"},
+            {"Ingredient": "PCE Solution", "Source": source_pce, "Conc.": f"{pce_conc}%", "Mass (g)": f"{mass_pce_sol:.2f}"},
+            {"Ingredient": "DI Water", "Source": "DI", "Conc.": "-", "Mass (g)": f"{mass_water:.2f}"},
+            {"Ingredient": "TOTAL", "Source": "-", "Conc.": "-", "Mass (g)": f"{target_total_mass:.2f}"},
+        ]
+        st.table(calc_data)
+        
+        # Theoretical Yield metrics
+        st.caption(f"Theoretical n_Si: {n_si_mol*1000:.2f} mmol | n_Ca: {n_ca_mol*1000:.2f} mmol")
 
     st.divider()
     st.subheader("Process Parameters")
