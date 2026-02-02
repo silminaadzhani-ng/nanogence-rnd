@@ -107,8 +107,8 @@ if is_designer:
         
         # Determine default values based on Edit Mode or Standard Defaults
         d_date = edit_recipe.recipe_date.date() if edit_recipe else datetime.today()
-        d_name = edit_recipe.name if edit_recipe else f"Trial {d_code}"
         d_code = edit_recipe.code if edit_recipe else generate_recipe_code()
+        d_name = edit_recipe.name if edit_recipe else f"Trial {d_code}"
         
         # Defaults
         d_casi = edit_recipe.ca_si_ratio if edit_recipe else 1.50
