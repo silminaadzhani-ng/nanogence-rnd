@@ -28,39 +28,27 @@ def init_db():
     
     # Soft Migrations (for SQLite existing tables)
     inspector = inspect(engine)
+    
+    def add_column_if_missing(table_name, col_name, col_type):
+        cols = [c["name"] for c in inspector.get_columns(table_name)]
+        if col_name not in cols:
+            with engine.begin() as conn: # engine.begin() handles commits automatically
+                conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}"))
+                print(f"Added column {col_name} to {table_name}")
+
     if "recipes" in inspector.get_table_names():
-        cols = [c["name"] for c in inspector.get_columns("recipes")]
-        with engine.connect() as conn:
-            if "recipe_date" not in cols:
-                conn.execute(text("ALTER TABLE recipes ADD COLUMN recipe_date DATETIME"))
-            if "molarity_na2sio3" not in cols:
-                conn.execute(text("ALTER TABLE recipes ADD COLUMN molarity_na2sio3 FLOAT"))
-            if "ca_addition_rate" not in cols:
-                conn.execute(text("ALTER TABLE recipes ADD COLUMN ca_addition_rate FLOAT"))
-            if "si_addition_rate" not in cols:
-                conn.execute(text("ALTER TABLE recipes ADD COLUMN si_addition_rate FLOAT"))
-            if "ca_stock_batch_id" not in cols:
-                conn.execute(text("ALTER TABLE recipes ADD COLUMN ca_stock_batch_id VARCHAR"))
-            if "si_stock_batch_id" not in cols:
-                conn.execute(text("ALTER TABLE recipes ADD COLUMN si_stock_batch_id VARCHAR"))
-            if "material_sources" not in cols:
-                conn.execute(text("ALTER TABLE recipes ADD COLUMN material_sources JSON"))
-            if "target_ph" not in cols:
-                conn.execute(text("ALTER TABLE recipes ADD COLUMN target_ph FLOAT"))
-            conn.commit()
+        add_column_if_missing("recipes", "recipe_date", "DATETIME")
+        add_column_if_missing("recipes", "molarity_na2sio3", "FLOAT")
+        add_column_if_missing("recipes", "ca_addition_rate", "FLOAT")
+        add_column_if_missing("recipes", "si_addition_rate", "FLOAT")
+        add_column_if_missing("recipes", "ca_stock_batch_id", "VARCHAR")
+        add_column_if_missing("recipes", "si_stock_batch_id", "VARCHAR")
+        add_column_if_missing("recipes", "material_sources", "JSON")
+        add_column_if_missing("recipes", "target_ph", "FLOAT")
 
     if "stock_solution_batches" in inspector.get_table_names():
-        cols = [c["name"] for c in inspector.get_columns("stock_solution_batches")]
-        with engine.connect() as conn:
-            if "preparation_date" not in cols:
-                conn.execute(text("ALTER TABLE stock_solution_batches ADD COLUMN preparation_date DATETIME"))
-            if "raw_material_id" not in cols:
-                conn.execute(text("ALTER TABLE stock_solution_batches ADD COLUMN raw_material_id VARCHAR"))
-            conn.commit()
+        add_column_if_missing("stock_solution_batches", "preparation_date", "DATETIME")
+        add_column_if_missing("stock_solution_batches", "raw_material_id", "VARCHAR")
 
     if "raw_materials" in inspector.get_table_names():
-        cols = [c["name"] for c in inspector.get_columns("raw_materials")]
-        with engine.connect() as conn:
-            if "molecular_weight" not in cols:
-                conn.execute(text("ALTER TABLE raw_materials ADD COLUMN molecular_weight FLOAT"))
-            conn.commit()
+        add_column_if_missing("raw_materials", "molecular_weight", "FLOAT")

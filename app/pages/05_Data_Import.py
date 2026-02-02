@@ -16,18 +16,18 @@ st.info("Import historical data from CSV, Excel, or Google Sheets.")
 
 db: Session = next(get_db())
 
-# Define import types and their expected columns
+# Define import types and their expected columns (headers)
 IMPORT_TYPES = {
     "Raw Materials": ["material_name", "chemical_type", "brand", "lot_number", "molecular_weight", "purity_percent", "initial_quantity_kg", "received_date"],
     "Stock Solutions": ["code", "chemical_type", "molarity", "target_volume_ml", "actual_mass_g", "preparation_date", "operator", "source_lot_number"],
-    "Recipes": ["name", "ca_si_ratio", "molarity_ca_no3", "molarity_na2sio3", "total_solid_content", "pce_content_wt", "target_ph"],
+    "Recipes": ["name", "ca_si_ratio", "molarity_ca", "molarity_si", "solids_percent", "pce_dosage", "target_ph"],
     "Synthesis Results": ["recipe_name", "batch_ref", "execution_date", "operator", "ph", "solids_measured", "strength_1d", "strength_28d", "flow"]
 }
 
 import_mode = st.selectbox("Select Import Category", options=list(IMPORT_TYPES.keys()))
 
 with st.expander("📋 Expected Column Formats", expanded=False):
-    st.write(f"For **{import_mode}**, your file should contain these columns:")
+    st.write(f"For **{import_mode}**, your file should contain these headers:")
     st.code(", ".join(IMPORT_TYPES[import_mode]))
     st.caption("Note: Dates should be in YYYY-MM-DD format.")
 
@@ -42,48 +42,29 @@ with tab1:
             if uploaded_file.name.endswith('.csv'):
                 df = pd.read_csv(uploaded_file)
             else:
-                # Load Excel to check for sheets
                 xls = pd.ExcelFile(uploaded_file)
                 sheet_names = xls.sheet_names
-                if len(sheet_names) > 1:
-                    selected_sheet = st.selectbox("Select Sheet", options=sheet_names)
-                else:
-                    selected_sheet = sheet_names[0]
+                selected_sheet = st.selectbox("Select Sheet", options=sheet_names) if len(sheet_names) > 1 else sheet_names[0]
                 df = pd.read_excel(uploaded_file, sheet_name=selected_sheet)
         except Exception as e:
             st.error(f"Error reading file: {e}")
 
 with tab2:
-    st.markdown("""
-    **Instructions**:
-    1. Open your Google Sheet.
-    2. Click **File > Share > Publish to web**.
-    3. Select your sheet and choose **Comma-separated values (.csv)**.
-    4. Paste the generated link below.
-    """)
+    st.markdown("Paste your public Google Sheet link below (must be shared as 'Anyone with the link' or published as CSV).")
     sheet_url = st.text_input("Google Sheet Link", placeholder="Paste your Google Sheet URL here")
     if sheet_url:
         try:
-            # Auto-convert standard Google Sheet links to CSV export links
             final_url = sheet_url
             if "docs.google.com/spreadsheets" in sheet_url:
                 if "/export" not in sheet_url and "/pub" not in sheet_url:
-                    # Handle GID (tab selection)
                     import re
                     gid_match = re.search(r"gid=(\d+)", sheet_url)
                     gid = gid_match.group(1) if gid_match else "0"
-                    
                     base_url = sheet_url.split("/edit")[0]
                     final_url = f"{base_url}/export?format=csv&gid={gid}"
-                    st.caption(f"🔄 Auto-converted to CSV link: `{final_url[:60]}...`")
-
             df = pd.read_csv(final_url)
         except Exception as e:
-            if "401" in str(e) or "403" in str(e):
-                st.error("🔑 **Unauthorized (401/403)**: Your Google Sheet is private.")
-                st.info("💡 **Fix**: Click **Share** in Google Sheets and change permission to **'Anyone with the link can view'**, or use **'Publish to Web'** as CSV.")
-            else:
-                st.error(f"Error reading Google Sheet: {e}")
+            st.error(f"Error reading Google Sheet: {e}")
 
 if df is not None:
     st.subheader("Data Preview")
@@ -112,8 +93,7 @@ if df is not None:
 
                 elif import_mode == "Stock Solutions":
                     lot = str(row.get("source_lot_number", ""))
-                    rm = db.query(RawMaterial).filter(RawMaterial.lot_number == lot).first()
-                    
+                    rm = db.query(RawMaterial).filter(RawMaterial.lot_number == lot).first() if lot else None
                     new_ss = StockSolutionBatch(
                         code=str(row.get("code", "")),
                         chemical_type=str(row.get("chemical_type", "")),
@@ -131,10 +111,10 @@ if df is not None:
                     new_recipe = Recipe(
                         name=str(row.get("name", "")),
                         ca_si_ratio=float(row.get("ca_si_ratio", 1.0)),
-                        molarity_ca_no3=float(row.get("molarity_ca_no3", 1.5)),
-                        molarity_na2sio3=float(row.get("molarity_na2sio3", 0.75)),
-                        total_solid_content=float(row.get("total_solid_content", 5.0)),
-                        pce_content_wt=float(row.get("pce_content_wt", 2.0)),
+                        molarity_ca_no3=float(row.get("molarity_ca", 1.5)),
+                        molarity_na2sio3=float(row.get("molarity_si", 0.75)),
+                        total_solid_content=float(row.get("solids_percent", 5.0)),
+                        pce_content_wt=float(row.get("pce_dosage", 2.0)),
                         target_ph=float(row.get("target_ph", 11.5)),
                         created_by="Import"
                     )
@@ -183,3 +163,4 @@ if df is not None:
         
         db.commit()
         st.success(f"Successfully imported {count} records into {import_mode}!")
+        if st.button("Refresh Page"): st.rerun()
