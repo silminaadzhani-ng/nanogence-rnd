@@ -450,48 +450,61 @@ if is_library:
     f2.metric("Total Recipes", len(recipes))
 
     if recipes:
-        # Header
-        h_cols = st.columns([2, 3, 2, 1, 1, 1, 1, 2])
-        headers = ["Code", "Name", "Date", "Ca/Si", "Solid%", "pH", "PCE%", "Actions"]
-        for hc, h_text in zip(h_cols, headers):
-            hc.markdown(f"**{h_text}**")
-        st.divider()
+        # Custom CSS to make expanders look like a list
+        st.markdown("""
+        <style>
+        .streamlit-expanderHeader {
+            background-color: #f0f2f6;
+            border-radius: 5px;
+        }
+        </style>
+        """, unsafe_allow_html=True)
 
         for r in recipes:
-            cols = st.columns([2, 3, 2, 1, 1, 1, 1, 2])
+            # Summary Label
+            date_str = r.recipe_date.strftime("%Y-%m-%d") if r.recipe_date else "?"
+            label = f"📄 **{r.code}**  |  {r.name}  |  📅 {date_str}"
             
-            # Data Display
-            cols[0].write(r.code)
-            cols[1].write(r.name)
-            cols[2].write(r.recipe_date.strftime("%Y-%m-%d") if r.recipe_date else "-")
-            cols[3].write(f"{r.ca_si_ratio:.2f}")
-            cols[4].write(f"{r.total_solid_content:.1f}%")
-            cols[5].write(f"{r.target_ph}")
-            cols[6].write(f"{r.pce_content_wt:.1f}%")
-            
-            # Actions (Side-by-side)
-            a_col1, a_col2 = cols[7].columns(2)
-            b_edit = a_col1.button("✏️", key=f"edit_btn_{r.id}", help="Edit this recipe")
-            b_del = a_col2.button("🗑️", key=f"del_btn_{r.id}", help="Delete this recipe")
-
-            if b_edit:
-                st.session_state.edit_recipe_id = r.id
-                st.session_state.active_tab_index = 1 # Switch to Designer
-                st.rerun()
-            
-            if b_del:
-                # Direct delete (maybe add confirmation? standard st.button doesn't support confirm easily without state)
-                # For quick action, we delete. User requested "simply".
-                # But to be safe, maybe we require a second click?
-                # For now, immediate delete as per request style.
-                try:
-                    db.delete(r)
-                    db.commit()
-                    st.session_state.success_msg = f"Recipe '{r.name}' deleted."
+            with st.expander(label):
+                # Detailed View
+                d1, d2, d3, d4 = st.columns(4)
+                d1.metric("Ca/Si Ratio", f"{r.ca_si_ratio:.2f}")
+                d2.metric("Solids", f"{r.total_solid_content:.1f}%")
+                d3.metric("Target pH", f"{r.target_ph}")
+                d4.metric("PCE Dosage", f"{r.pce_content_wt:.1f}%")
+                
+                st.markdown("---")
+                s1, s2 = st.columns(2)
+                
+                # Safe access to relationships
+                ca_code = r.ca_stock_batch.code if r.ca_stock_batch else "Manual/None"
+                si_code = r.si_stock_batch.code if r.si_stock_batch else "Manual/None"
+                
+                s1.write(f"**Ca Source:** {ca_code}")
+                s2.write(f"**Si Source:** {si_code}")
+                
+                if r.process_config:
+                    st.caption(f"**Feeding:** {r.process_config.get('feeding_sequence', 'N/A')}")
+                    notes = r.process_config.get('procedure', '')
+                    if notes:
+                        st.text_area("Procedure Notes", notes, height=68, disabled=True, key=f"d_notes_{r.id}")
+                
+                st.markdown("---")
+                
+                # Actions
+                ac1, ac2, ac3 = st.columns([1, 1, 4])
+                if ac1.button("✏️ Edit", key=f"edit_{r.id}"):
+                    st.session_state.edit_recipe_id = r.id
+                    st.session_state.active_tab_index = 1
                     st.rerun()
-                except Exception as e:
-                    st.error(f"Error deleting: {e}")
-            
-            st.markdown("<hr style='margin: 0px; padding: 0px; opacity: 0.2;'>", unsafe_allow_html=True)
+                    
+                if ac2.button("🗑️ Delete", key=f"del_{r.id}"):
+                     try:
+                        db.delete(r)
+                        db.commit()
+                        st.session_state.success_msg = f"Recipe '{r.name}' deleted."
+                        st.rerun()
+                     except Exception as e:
+                        st.error(f"Error: {e}")
     else:
         st.info("No recipes found in the library.")
