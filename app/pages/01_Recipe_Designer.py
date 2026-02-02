@@ -186,7 +186,29 @@ if st.button("💾 Save Recipe"):
 
 st.divider()
 st.subheader("📚 Recipe Library")
-recipes = db.query(Recipe).order_by(Recipe.created_at.desc()).all()
+
+# Search and Filters
+c1, c2 = st.columns([2, 1])
+search_query = c1.text_input("🔍 Search Recipe Name", placeholder="e.g. Trial A")
+series_filter = c2.multiselect("Filter Series", options=["Series A", "Series B", "Series C", "Series D"], default=[])
+
+query = db.query(Recipe).order_by(Recipe.name.asc())
+
+if search_query:
+    query = query.filter(Recipe.name.contains(search_query))
+
+# Filter by series (using naming convention or Ca/Si ratio as proxy)
+if series_filter:
+    series_conditions = []
+    if "Series A" in series_filter: series_conditions.append(Recipe.ca_si_ratio == 1.25)
+    if "Series B" in series_filter: series_conditions.append(Recipe.ca_si_ratio == 1.50)
+    if "Series C" in series_filter: series_conditions.append(Recipe.ca_si_ratio == 1.75)
+    if "Series D" in series_filter: series_conditions.append(Recipe.ca_si_ratio == 2.00)
+    from sqlalchemy import or_
+    query = query.filter(or_(*series_conditions))
+
+recipes = query.all()
+
 if recipes:
     data = []
     for r in recipes:
