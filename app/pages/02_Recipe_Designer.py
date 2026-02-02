@@ -54,9 +54,22 @@ with st.sidebar:
     st.header("🧠 AI Predictor")
     st.info("Adjust parameters to see estimated 28d Strength.")
 
-tab_dash, tab1, tab2 = st.tabs(["📊 Dashboard", "➕ Designer & Calculator", "📚 Recipe Library"])
+# Navigation State
+if "main_nav" not in st.session_state:
+    st.session_state.main_nav = "📊 Dashboard"
 
-with tab_dash:
+selected_tab = st.radio("Navigation", 
+                        ["📊 Dashboard", "➕ Designer & Calculator", "📚 Recipe Library"], 
+                        horizontal=True,
+                        label_visibility="collapsed",
+                        key="main_nav")
+
+# Map selection to variables for backward compatibility (logical check instead of context manager)
+is_dash = selected_tab == "📊 Dashboard"
+is_designer = selected_tab == "➕ Designer & Calculator"
+is_library = selected_tab == "📚 Recipe Library"
+
+if is_dash:
     st.subheader("Recipe Analytics")
     col1, col2, col3 = st.columns(3)
     
@@ -73,7 +86,7 @@ with tab_dash:
         st.subheader("Ca/Si Ratio Distribution")
         st.bar_chart(df_recipes["Ca/Si Ratio"].value_counts())
 
-with tab1:
+if is_designer:
     with st.expander("ℹ️  Instructions", expanded=False):
         st.info("Define the chemical composition, stock solutions, and synthesis process steps.")
 
@@ -364,7 +377,7 @@ with tab1:
             except Exception as e:
                 st.error(f"Error: {str(e)}")
 
-with tab2:
+if is_library:
     st.subheader("📚 Recipe Library")
 
     # Filter Bar
@@ -422,7 +435,8 @@ with tab2:
                     
                     if c_edit.button("✏️ Edit This Recipe"):
                         st.session_state.edit_recipe_id = selected_id
-                        st.switch_page("pages/02_Recipe_Designer.py") # Force reload/navigate
+                        st.session_state.main_nav = "➕ Designer & Calculator"
+                        st.rerun()
                         
                     if c_del.button("🗑️ Delete This Recipe", type="primary"):
                         target = db.query(Recipe).filter(Recipe.id == selected_id).first()
