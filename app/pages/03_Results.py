@@ -4,11 +4,13 @@ import pandas as pd
 from sqlalchemy.orm import Session
 from app.database import get_db, init_db
 from app.models import Recipe, SynthesisBatch, QCMeasurement
+from app.ui_utils import display_logo
 
 # Ensure database is synced
 init_db()
 
 st.set_page_config(page_title="Results", page_icon="🧪", layout="wide")
+display_logo()
 
 st.markdown("# 🧪 Synthesis Results & Characterization")
 

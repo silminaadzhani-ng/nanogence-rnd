@@ -3,11 +3,13 @@ import datetime
 from sqlalchemy.orm import Session
 from app.database import get_db, init_db
 from app.models import SynthesisBatch, PerformanceTest
+from app.ui_utils import display_logo
 
 # Ensure database is synced
 init_db()
 
 st.set_page_config(page_title="Performance Results", page_icon="📈", layout="wide")
+display_logo()
 
 st.markdown("# 📈 Performance Testing (Mortar)")
 

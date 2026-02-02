@@ -8,8 +8,9 @@ if root_path not in sys.path:
     sys.path.append(root_path)
 
 from app.database import init_db
+from app.ui_utils import display_logo
 
-# Centralized database initialization (Handles tables and missing columns)
+# Centralized database initialization
 init_db()
 
 st.set_page_config(
@@ -18,6 +19,8 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+display_logo()
 
 st.title("🧪 Nanogence R&D Platform")
 
@@ -28,9 +31,10 @@ This platform integrates experimental design, synthesis execution, and performan
 
 #### 👈 Select a Module from the Sidebar
 
-*   **Recipe Designer**: Create new synthesis recipes or clone existing ones.
-*   **Lab Notebook**: Execute batches and record process parameters/QC.
-*   **Results & Analytics**: Analyze performance data and predictive models.
+*   **🏛️ Materials**: Manage raw chemicals and liquid stock solutions.
+*   **📝 Recipe Designer**: Theoretical stoichiometric calculations and AI strength prediction.
+*   **🧪 Results**: Log synthesis batches and detailed characterization (PSD, pH, Agglomeration).
+*   **📉 Analytics**: Visualize performance trends and mortar testing data.
 
 ---
 **System Status**: ✅ Database Connected (SQLite)

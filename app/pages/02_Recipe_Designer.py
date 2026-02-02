@@ -4,12 +4,14 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from app.database import get_db, init_db
 from app.models import Recipe, StockSolutionBatch
+from app.ui_utils import display_logo
+from app.ml_utils import predict_strength
 
 # Ensure database is synced
 init_db()
-from app.ml_utils import predict_strength
 
 st.set_page_config(page_title="Recipe Designer", page_icon="📝", layout="wide")
+display_logo()
 
 st.markdown("# 📝 Experimental Recipe Designer")
 
@@ -138,23 +140,23 @@ with tab1:
         st.table(calc_data)
         st.caption(f"Theoretical n_Si: {n_si_mol*1000:.2f} mmol | n_Ca: {n_ca_mol*1000:.2f} mmol | PCE solid: {mass_pce_sol * pce_conc_factor:.2f} g")
 
-        st.divider()
-        st.subheader("Process Parameters")
-        cp_c1, cp_c2, cp_c3 = st.columns(3)
-        rate_ca = cp_c1.number_input("Ca Addition Rate (mL/min)", value=0.5)
-        rate_si = cp_c2.number_input("Si Addition Rate (mL/min)", value=0.5)
-        target_ph = cp_c3.number_input("Target pH", value=11.5, step=0.1)
-        
-        procedure_notes = st.text_area("Procedure Notes", placeholder="e.g. 1. Dissolve PCX...\n2. Start feeding...", height=150)
-        
-        p1d = predict_strength(ca_si, m_ca, solids, pce_dosage, target='1d')
-        p28d = predict_strength(ca_si, m_ca, solids, pce_dosage, target='28d')
-        
-        cp1, cp2 = st.columns(2)
-        if p1d is not None:
-            cp1.metric(label="Predicted 1d Strength", value=f"{p1d:.1f} MPa")
-        if p28d is not None:
-            cp2.metric(label="Predicted 28d Strength", value=f"{p28d:.1f} MPa")
+    st.divider()
+    st.subheader("Process Parameters")
+    cp_c1, cp_c2, cp_c3 = st.columns(3)
+    rate_ca = cp_c1.number_input("Ca Addition Rate (mL/min)", value=0.5)
+    rate_si = cp_c2.number_input("Si Addition Rate (mL/min)", value=0.5)
+    target_ph = cp_c3.number_input("Target pH", value=11.5, step=0.1)
+    
+    procedure_notes = st.text_area("Procedure Notes", placeholder="e.g. 1. Dissolve PCX...\n2. Start feeding...", height=150)
+    
+    p1d = predict_strength(ca_si, m_ca, solids, pce_dosage, target='1d')
+    p28d = predict_strength(ca_si, m_ca, solids, pce_dosage, target='28d')
+    
+    cp1, cp2 = st.columns(2)
+    if p1d is not None:
+        cp1.metric(label="Predicted 1d Strength", value=f"{p1d:.1f} MPa")
+    if p28d is not None:
+        cp2.metric(label="Predicted 28d Strength", value=f"{p28d:.1f} MPa")
 
     st.divider()
     if st.button("💾 Save Recipe"):
