@@ -492,6 +492,6 @@ if is_library:
                 except Exception as e:
                     st.error(f"Error deleting: {e}")
             
-            st.divider() 
+            st.markdown("<hr style='margin: 0px; padding: 0px; opacity: 0.2;'>", unsafe_allow_html=True)
     else:
         st.info("No recipes found in the library.")
