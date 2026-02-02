@@ -60,57 +60,108 @@ with col1:
     ca_batch_id = st.selectbox("Ca Stock Batch", options=["None"] + list(ca_opts.keys()))
     si_batch_id = st.selectbox("Si Stock Batch", options=["None"] + list(si_opts.keys()))
 
-with col2:
-    st.subheader("📊 Mass Calculator (Real-time)")
-    target_total_mass = st.number_input("Target Total Batch Mass (g)", min_value=1.0, value=400.0)
-    
-    # Densities (g/mL) - often needed for volume -> mass conversion
-    # We can use defaults or let user override
-    exp_densities = st.expander("Solution Densities (g/mL)", expanded=False)
-    d_ca = exp_densities.number_input("Ca Solution Density", value=1.2, step=0.01)
-    d_si = exp_densities.number_input("Si Solution Density", value=1.1, step=0.01)
-    # Lab Constants (Anhydrous Precursor MWs)
-    MW_SI = 122.06  # Na2SiO3
-    MW_CA = 164.09  # Ca(NO3)2
-    
-    # 1. Target Mineral Mass from Solid Content %
-    target_mineral_solids_g = (solids / 100.0) * target_total_mass
-    
-    # 2. Stoichiometry: Find Moles Si (n_si)
-    # Weight_min = n_si * MW_SI + (n_si * Ca_Si) * MW_CA
-    # n_si = Weight_min / (MW_SI + Ca_Si * MW_CA)
-    n_si_mol = target_mineral_solids_g / (MW_SI + ca_si * MW_CA) if (MW_SI + ca_si * MW_CA) > 0 else 0
-    n_ca_mol = n_si_mol * ca_si
-    
-    # 3. Required solution volumes
-    v_si_ml = (n_si_mol * 1000) / m_si if m_si > 0 else 0
-    v_ca_ml = (n_ca_mol * 1000) / m_ca if m_ca > 0 else 0
-    
-    # 4. Convert volumes to masses using densities
-    mass_si_sol = v_si_ml * d_si
-    mass_ca_sol = v_ca_ml * d_ca
-    
-    # 5. PCE Mass (dosage is % of total batch mass)
-    mass_pce_sol = target_total_mass * (pce_dosage / 100.0)
-    
-    # 6. DI Water (balance)
-    mass_water = target_total_mass - mass_si_sol - mass_ca_sol - mass_pce_sol
-    
-    # UI Table
-    display_source_ca = ca_batch_id if ca_batch_id != "None" else source_ca
-    display_source_si = si_batch_id if si_batch_id != "None" else source_si
+    with col2:
+        st.subheader("📊 Mass Calculator (Real-time)")
+        
+        c_v1, c_v2 = st.columns(2)
+        target_basis = c_v1.selectbox("Target Basis", ["Total Volume (mL)", "Total Mass (g)"])
+        target_val = c_v2.number_input("Target Value", min_value=1.0, value=400.0 if target_basis == "Total Volume (mL)" else 415.0)
+        
+        pce_basis = st.selectbox("PCE Dosage Basis", ["% of Ca(NO3)2 Mass", "% of Total Batch Mass"])
+        
+        # Densities (g/mL) - often needed for volume -> mass conversion
+        # Set defaults based on user's successful trials
+        exp_densities = st.expander("Solution Densities (g/mL)", expanded=False)
+        d_ca = exp_densities.number_input("Ca Solution Density", value=1.150, format="%.3f")
+        d_si = exp_densities.number_input("Si Solution Density", value=1.084, format="%.3f")
+        d_pce = exp_densities.number_input("PCE Solution Density", value=1.080, format="%.3f")
+        d_water = exp_densities.number_input("Water Density", value=0.998, format="%.3f")
+        
+        # --- Stoichiometric Calculation Logic ---
+        # Constants (Anhydrous Precursor MWs)
+        MW_SI = 122.06  # Na2SiO3
+        MW_CA = 164.09  # Ca(NO3)2
+        
+        S = MW_SI + ca_si * MW_CA
+        alpha = solids / 100.0
+        pce_conc_factor = pce_conc / 100.0
+        
+        # Strategy:
+        # We need n_si. 
+        # m_min = n_si * S
+        # m_total = m_min / alpha
+        # m_ca_solid = n_si * ca_si * MW_CA
+        
+        # Solve based on target type
+        if target_basis == "Total Mass (g)":
+            m_total = target_val
+        else:
+            # Solve for M_total given V_target
+            # V_target = V_si + V_ca + V_pce + V_water
+            # We derive M_total using the derived denominator
+            
+            # PCE solution mass as fraction of M_total (delta)
+            if pce_basis == "% of Total Batch Mass":
+                delta = pce_dosage / 100.0
+            else:
+                # mass_pce_sol = (dosage/100 * mass_ca_solid) / pce_conc
+                # delta = (dosage/100 * (alpha/S * ca_si * MW_CA)) / pce_conc
+                delta = (pce_dosage / 100.0) * (alpha * ca_si * MW_CA / S) / pce_conc_factor
 
-    calc_data = [
-        {"Ingredient": "Na2SiO3 Solution", "Source": display_source_si, "Conc.": f"{m_si} M", "Mass (g)": f"{mass_si_sol:.2f}"},
-        {"Ingredient": "Ca(NO3)2 Solution", "Source": display_source_ca, "Conc.": f"{m_ca} M", "Mass (g)": f"{mass_ca_sol:.2f}"},
-        {"Ingredient": "PCE Solution", "Source": source_pce, "Conc.": f"{pce_conc}%", "Mass (g)": f"{mass_pce_sol:.2f}"},
-        {"Ingredient": "DI Water", "Source": "DI", "Conc.": "-", "Mass (g)": f"{mass_water:.2f}"},
-        {"Ingredient": "TOTAL", "Source": "-", "Conc.": "-", "Mass (g)": f"{target_total_mass:.2f}"},
-    ]
-    st.table(calc_data)
-    
-    # Theoretical Yield metrics
-    st.caption(f"Theoretical n_Si: {n_si_mol*1000:.2f} mmol | n_Ca: {n_ca_mol*1000:.2f} mmol")
+            # Term components for Denominator = (V_total / M_total) * D_water
+            # Denom = 1 - delta(1 - Dw/Dp) - alpha/S * [ (Dsi-Dw)/Msi + R(Dca-Dw)/Mca ]
+            denom_pce = delta * (1.0 - (d_water / d_pce))
+            denom_mineral = (alpha / S) * ( ((d_si - d_water) / m_si) + (ca_si * (d_ca - d_water) / m_ca) )
+            
+            denom = 1.0 - denom_pce - denom_mineral
+            m_total = (target_val * d_water) / denom
+
+        # --- Derive final masses ---
+        n_si_mol = (m_total * alpha) / S
+        m_ca_anhydrous = n_si_mol * ca_si * MW_CA
+        
+        # Volumes
+        v_si_ml = (n_si_mol * 1000) / m_si if m_si > 0 else 0
+        v_ca_ml = (n_si_mol * ca_si * 1000) / m_ca if m_ca > 0 else 0
+        
+        # Mass Si & Ca Solutions
+        mass_si_sol = v_si_ml * d_si
+        mass_ca_sol = v_ca_ml * d_ca
+        
+        # PCE Solution
+        if pce_basis == "% of Total Batch Mass":
+            mass_pce_sol = m_total * (pce_dosage / 100.0)
+        else:
+            mass_pce_sol = (m_ca_anhydrous * (pce_dosage / 100.0)) / pce_conc_factor
+        
+        v_pce_ml = mass_pce_sol / d_pce
+        
+        # DI Water (Filler by mass for 'Total Mass' mode, or by volume for 'Total Volume' mode)
+        if target_basis == "Total Mass (g)":
+            mass_water = m_total - mass_si_sol - mass_ca_sol - mass_pce_sol
+            v_water_ml = mass_water / d_water
+            v_total = v_si_ml + v_ca_ml + v_pce_ml + v_water_ml
+        else:
+            v_total = target_val
+            v_water_ml = v_total - v_si_ml - v_ca_ml - v_pce_ml
+            mass_water = v_water_ml * d_water
+            m_total = mass_si_sol + mass_ca_sol + mass_pce_sol + mass_water
+
+        # UI Table
+        display_source_ca = ca_batch_id if ca_batch_id != "None" else source_ca
+        display_source_si = si_batch_id if si_batch_id != "None" else source_si
+
+        calc_data = [
+            {"Ingredient": "Na2SiO3 Solution", "Source": display_source_si, "Conc.": f"{m_si} M", "Mass (g)": f"{mass_si_sol:.2f}"},
+            {"Ingredient": "Ca(NO3)2 Solution", "Source": display_source_ca, "Conc.": f"{m_ca} M", "Mass (g)": f"{mass_ca_sol:.2f}"},
+            {"Ingredient": "PCE Solution", "Source": source_pce, "Conc.": f"{pce_conc}%", "Mass (g)": f"{mass_pce_sol:.2f}"},
+            {"Ingredient": "DI Water", "Source": "DI", "Conc.": f"{d_water:.3f} g/mL", "Mass (g)": f"{mass_water:.2f}"},
+            {"Ingredient": "TOTAL", "Source": "BATCH", "Conc.": f"{v_total:.1f} mL", "Mass (g)": f"{m_total:.2f}"},
+        ]
+        st.table(calc_data)
+        
+        # Theoretical yield and dosage check
+        st.caption(f"Theoretical n_Si: {n_si_mol*1000:.2f} mmol | n_Ca: {n_ca_mol*1000:.2f} mmol | PCE solid: {mass_pce_sol * pce_conc_factor:.2f} g")
 
     st.divider()
     st.subheader("Process Parameters")
