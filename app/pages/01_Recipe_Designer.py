@@ -188,16 +188,17 @@ st.divider()
 st.subheader("📚 Recipe Library")
 
 # Search and Filters
-c1, c2 = st.columns([2, 1])
+c1, c2, c3 = st.columns([2, 1, 1])
 search_query = c1.text_input("🔍 Search Recipe Name", placeholder="e.g. Trial A")
 series_filter = c2.multiselect("Filter Series", options=["Series A", "Series B", "Series C", "Series D"], default=[])
 
 query = db.query(Recipe).order_by(Recipe.name.asc())
 
 if search_query:
-    query = query.filter(Recipe.name.contains(search_query))
+    query = query.filter(Recipe.name.ilike(f"%{search_query}%"))
 
 # Filter by series (using naming convention or Ca/Si ratio as proxy)
+# ... (rest of filtering logic)
 if series_filter:
     series_conditions = []
     if "Series A" in series_filter: series_conditions.append(Recipe.ca_si_ratio == 1.25)
@@ -208,6 +209,7 @@ if series_filter:
     query = query.filter(or_(*series_conditions))
 
 recipes = query.all()
+c3.metric("Total Recipes", len(recipes))
 
 if recipes:
     data = []
