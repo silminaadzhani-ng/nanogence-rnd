@@ -1,6 +1,7 @@
 import streamlit as st
 import datetime
 import pandas as pd
+import uuid
 from sqlalchemy.orm import Session
 from app.database import get_db, init_db
 from app.models import Recipe, SynthesisBatch, QCMeasurement
@@ -16,8 +17,9 @@ st.markdown("# 🧪 Synthesis Results & Characterization")
 
 db: Session = next(get_db())
 
-tab_dash, tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "📊 Results Library", "🚀 Log Batch", "📝 Simplified QC Entry"])
+tab_dash, tab1, tab2 = st.tabs(["📊 Dashboard", "📊 Results Library", "📝 Record Characterization"])
 
+# --- Dashboard Tab ---
 with tab_dash:
     st.subheader("Synthesis Analytics")
     col1, col2, col3 = st.columns(3)
@@ -36,6 +38,7 @@ with tab_dash:
         st.subheader("pH vs Solids Distribution")
         st.scatter_chart(df_qc, x="pH", y="Solids (%)")
 
+# --- Results Library Tab ---
 with tab1:
     st.subheader("Synthesis Characterization Table")
     
@@ -65,111 +68,125 @@ with tab1:
         df_lib = pd.DataFrame(library_data)
         st.dataframe(df_lib, use_container_width=True)
     else:
-        st.info("No experimental results recorded yet in the database.")
+        st.info("No experimental results recorded yet.")
 
-# --- Tab 2: Start Batch ---
+# --- Record Characterization Tab (New Workflow) ---
 with tab2:
-    st.subheader("Plan Synthesis Batch")
+    st.subheader("1. Select Recipe from Library")
     
-    recipes = db.query(Recipe).all()
-    recipe_options = {f"{r.name} (v{r.version})": r.id for r in recipes}
+    # Show Recipe Table
+    recipes = db.query(Recipe).order_by(Recipe.name.asc()).all()
+    recipe_table_data = []
+    for r in recipes:
+        recipe_table_data.append({
+            "ID": str(r.id),
+            "Name": r.name,
+            "Ca/Si": r.ca_si_ratio,
+            "Solids %": r.total_solid_content,
+            "Created": r.recipe_date.strftime("%Y-%m-%d") if r.recipe_date else "N/A"
+        })
     
-    selected_recipe_name = st.selectbox("Select Recipe for this Sample", options=list(recipe_options.keys()))
+    df_recipes = pd.DataFrame(recipe_table_data)
     
-    if selected_recipe_name:
-        batch_ref = st.text_input("Notebook / Lab Reference", placeholder="e.g. Volume 2, Page 12")
-        operator = st.text_input("Operator Name", value="Silmina Adzhani")
+    # Use st.dataframe for selection
+    recipe_selection = st.dataframe(
+        df_recipes,
+        use_container_width=True,
+        hide_index=True,
+        on_select="rerun",
+        selection_mode="single-row",
+        column_order=["Name", "Ca/Si", "Solids %", "Created"]
+    )
+    
+    selected_indices = recipe_selection.selection.rows
+    
+    if selected_indices:
+        idx = selected_indices[0]
+        sel_recipe_id = recipe_table_data[idx]["ID"]
+        sel_recipe_name = recipe_table_data[idx]["Name"]
         
-        if st.button("Start Batch & Lock Reference"):
-            if not batch_ref:
-                st.error("Notebook Reference is mandatory for traceability.")
-            else:
-                try:
-                    new_batch = SynthesisBatch(
-                        recipe_id=recipe_options[selected_recipe_name],
-                        lab_notebook_ref=batch_ref,
-                        operator=operator,
-                        status="Completed",
-                        execution_date=datetime.datetime.utcnow()
-                    )
-                    db.add(new_batch)
-                    db.commit()
-                    st.success(f"Batch {batch_ref} is now ready for QC data.")
-                except Exception as e:
-                    st.error(f"Error creating batch: {str(e)}")
-
-# --- Tab 3: Detailed QC ---
-with tab3:
-    st.subheader("Characterization Data Entry")
-    
-    batches = db.query(SynthesisBatch).order_by(SynthesisBatch.execution_date.desc()).limit(50).all()
-    batch_options = {f"{b.lab_notebook_ref} (Recipe: {b.recipe.name})": str(b.id) for b in batches}
-    
-    selected_batch_name = st.selectbox("Select Batch to enter results", options=list(batch_options.keys()), key="qc_batch_select")
-    
-    if selected_batch_name:
-        batch_id = batch_options[selected_batch_name]
+        st.success(f"Selected: **{sel_recipe_name}**")
         
-        with st.form("simplified_qc_form"):
-            st.markdown("#### 1. General Properties")
+        st.divider()
+        st.subheader("2. Batch Reference & QC Entry")
+        
+        with st.form("characterization_form"):
+            col_a, col_b = st.columns(2)
+            batch_ref = col_a.text_input("Notebook / Lab Reference", value=f"NB-{sel_recipe_name}-{datetime.date.today().strftime('%Y%m%d')}")
+            operator = col_b.text_input("Operator Name", value="Silmina Adzhani")
+            
+            st.markdown("#### General Properties")
             c1, c2, c3 = st.columns(3)
             final_ph = c1.number_input("Final pH", value=11.50)
             final_solids = c2.number_input("Final Solids content (%)", value=5.0)
             settling = c3.number_input("Settling Height (mm)", value=0.0)
 
-            st.markdown("#### 2. Particle Size Analysis (PSD)")
-            st.caption("Enter Before and After values in the grid below:")
+            st.markdown("#### Particle Size Analysis (PSD)")
+            st.caption("Enter values in the grid below:")
             
-            # Prepare a clean grid for PSD data
             psd_rows = ["d10 (µm)", "d50 (µm)", "d90 (µm)", "Mean (µm)", "SSA (m²/cm³)"]
             psd_cols = ["Volume (Before)", "Number (Before)", "Volume (After)", "Number (After)"]
-            
             psd_init_df = pd.DataFrame(0.0, index=psd_rows, columns=psd_cols)
             
-            edited_psd = st.data_editor(
-                psd_init_df,
-                use_container_width=True,
-                key="psd_editor"
-            )
+            edited_psd = st.data_editor(psd_init_df, use_container_width=True, key="psd_editor_new")
 
-            if st.form_submit_button("✅ Save Characterization"):
-                try:
-                    # Extract from edited_psd
-                    qc = QCMeasurement(
-                        batch_id=batch_id,
-                        ph=final_ph,
-                        solid_content_measured=final_solids,
-                        settling_height=settling,
+            if st.form_submit_button("✅ Save Characterization for this Recipe"):
+                if not batch_ref:
+                    st.error("Notebook Reference is required.")
+                else:
+                    try:
+                        # 1. Create the SynthesisBatch (or find existing one with same ref)
+                        target_recipe_uuid = uuid.UUID(sel_recipe_id)
+                        batch = db.query(SynthesisBatch).filter(
+                            SynthesisBatch.recipe_id == target_recipe_uuid,
+                            SynthesisBatch.lab_notebook_ref == batch_ref
+                        ).first()
                         
-                        # Before Sonication (Vol)
-                        psd_before_v_d10=edited_psd.at["d10 (µm)", "Volume (Before)"],
-                        psd_before_v_d50=edited_psd.at["d50 (µm)", "Volume (Before)"],
-                        psd_before_v_d90=edited_psd.at["d90 (µm)", "Volume (Before)"],
-                        psd_before_v_mean=edited_psd.at["Mean (µm)", "Volume (Before)"],
-                        psd_before_ssa=edited_psd.at["SSA (m²/cm³)", "Volume (Before)"],
+                        if not batch:
+                            batch = SynthesisBatch(
+                                recipe_id=target_recipe_uuid,
+                                lab_notebook_ref=batch_ref,
+                                operator=operator,
+                                status="Completed",
+                                execution_date=datetime.datetime.utcnow()
+                            )
+                            db.add(batch)
+                            db.flush() # Get the batch ID
                         
-                        # Before Sonication (Num)
-                        psd_before_n_d10=edited_psd.at["d10 (µm)", "Number (Before)"],
-                        psd_before_n_d50=edited_psd.at["d50 (µm)", "Number (Before)"],
-                        psd_before_n_d90=edited_psd.at["d90 (µm)", "Number (Before)"],
-                        psd_before_n_mean=edited_psd.at["Mean (µm)", "Number (Before)"],
+                        # 2. Save QC Measurement
+                        qc = QCMeasurement(
+                            batch_id=batch.id,
+                            ph=final_ph,
+                            solid_content_measured=final_solids,
+                            settling_height=settling,
+                            
+                            psd_before_v_d10=edited_psd.at["d10 (µm)", "Volume (Before)"],
+                            psd_before_v_d50=edited_psd.at["d50 (µm)", "Volume (Before)"],
+                            psd_before_v_d90=edited_psd.at["d90 (µm)", "Volume (Before)"],
+                            psd_before_v_mean=edited_psd.at["Mean (µm)", "Volume (Before)"],
+                            psd_before_ssa=edited_psd.at["SSA (m²/cm³)", "Volume (Before)"],
+                            
+                            psd_before_n_d10=edited_psd.at["d10 (µm)", "Number (Before)"],
+                            psd_before_n_d50=edited_psd.at["d50 (µm)", "Number (Before)"],
+                            psd_before_n_d90=edited_psd.at["d90 (µm)", "Number (Before)"],
+                            psd_before_n_mean=edited_psd.at["Mean (µm)", "Number (Before)"],
 
-                        # After Sonication (Vol)
-                        psd_after_v_d10=edited_psd.at["d10 (µm)", "Volume (After)"],
-                        psd_after_v_d50=edited_psd.at["d50 (µm)", "Volume (After)"],
-                        psd_after_v_d90=edited_psd.at["d90 (µm)", "Volume (After)"],
-                        psd_after_v_mean=edited_psd.at["Mean (µm)", "Volume (After)"],
-                        psd_after_ssa=edited_psd.at["SSA (m²/cm³)", "Volume (After)"],
+                            psd_after_v_d10=edited_psd.at["d10 (µm)", "Volume (After)"],
+                            psd_after_v_d50=edited_psd.at["d50 (µm)", "Volume (After)"],
+                            psd_after_v_d90=edited_psd.at["d90 (µm)", "Volume (After)"],
+                            psd_after_v_mean=edited_psd.at["Mean (µm)", "Volume (After)"],
+                            psd_after_ssa=edited_psd.at["SSA (m²/cm³)", "Volume (After)"],
 
-                        # After Sonication (Num)
-                        psd_after_n_d10=edited_psd.at["d10 (µm)", "Number (After)"],
-                        psd_after_n_d50=edited_psd.at["d50 (µm)", "Number (After)"],
-                        psd_after_n_d90=edited_psd.at["d90 (µm)", "Number (After)"],
-                        psd_after_n_mean=edited_psd.at["Mean (µm)", "Number (After)"]
-                    )
-                    db.add(qc)
-                    db.commit()
-                    st.success(f"Characterization data saved for {selected_batch_name}!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Critical entry error: {e}")
+                            psd_after_n_d10=edited_psd.at["d10 (µm)", "Number (After)"],
+                            psd_after_n_d50=edited_psd.at["d50 (µm)", "Number (After)"],
+                            psd_after_n_d90=edited_psd.at["d90 (µm)", "Number (After)"],
+                            psd_after_n_mean=edited_psd.at["Mean (µm)", "Number (After)"]
+                        )
+                        db.add(qc)
+                        db.commit()
+                        st.success(f"Results successfully linked to Recipe: {sel_recipe_name}")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error saving results: {e}")
+    else:
+        st.info("👆 Please click a Recipe name in the table above to start entering characterization results.")
