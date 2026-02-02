@@ -49,6 +49,9 @@ if st.session_state.edit_recipe_id:
         st.warning("Recipe not found. Exiting edit mode.")
         st.session_state.edit_recipe_id = None
 
+# Current Edit Context ID for stable widget keys
+edit_context_id = str(edit_recipe.id) if edit_recipe else "new"
+
 # --- Sidebar: AI Prediction ---
 with st.sidebar:
     st.header("🧠 AI Predictor")
@@ -117,24 +120,24 @@ if is_designer:
 
         c_code, c_date = st.columns([1, 2])
         c_code.caption(f"ID: **{d_code}**")
-        r_date = c_date.date_input("Recipe Date", value=d_date)
+        r_date = c_date.date_input("Recipe Date", value=d_date, key=f"date_{edit_context_id}")
         
-        name = st.text_input("Recipe Name", value=d_name, placeholder="e.g. CSH-Seed-Standard-2024")
+        name = st.text_input("Recipe Name", value=d_name, placeholder="e.g. CSH-Seed-Standard-2024", key=f"name_{edit_context_id}")
         
         c1, c2 = st.columns(2)
-        ca_si = c1.number_input("Ca/Si Ratio", min_value=0.0, max_value=2.5, step=0.05, value=d_casi)
-        solids = c2.number_input("Target Solid Content (%)", min_value=0.1, max_value=50.0, value=d_solids)
+        ca_si = c1.number_input("Ca/Si Ratio", min_value=0.0, max_value=2.5, step=0.05, value=d_casi, key=f"casi_{edit_context_id}")
+        solids = c2.number_input("Target Solid Content (%)", min_value=0.1, max_value=50.0, value=d_solids, key=f"solids_{edit_context_id}")
         
         c3, c4 = st.columns(2)
-        m_ca = c3.number_input("Ca(NO3)2 Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=d_m_ca)
-        m_si = c4.number_input("Na2SiO3 Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=d_m_si)
+        m_ca = c3.number_input("Ca(NO3)2 Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=d_m_ca, key=f"mca_{edit_context_id}")
+        m_si = c4.number_input("Na2SiO3 Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=d_m_si, key=f"msi_{edit_context_id}")
         
         c5, c6 = st.columns(2)
-        pce_dosage = c5.number_input("PCE Dosage (%)", min_value=0.0, max_value=100.0, step=0.1, value=d_pce_dosage)
-        pce_conc = c6.number_input("PCE Solution Conc. (wt.%)", min_value=1.0, max_value=100.0, value=d_pce_conc)
+        pce_dosage = c5.number_input("PCE Dosage (%)", min_value=0.0, max_value=100.0, step=0.1, value=d_pce_dosage, key=f"pce_dos_{edit_context_id}")
+        pce_conc = c6.number_input("PCE Solution Conc. (wt.%)", min_value=1.0, max_value=100.0, value=d_pce_conc, key=f"pce_conc_{edit_context_id}")
         
         # Re-introducing PCE Dosage Basis Selection
-        pce_basis = st.selectbox("PCE Dosage Basis", ["% of Total Batch Mass", "% of Ca(NO3)2 Reactant Mass"], index=0)
+        pce_basis = st.selectbox("PCE Dosage Basis", ["% of Total Batch Mass", "% of Ca(NO3)2 Reactant Mass"], index=0, key=f"pce_basis_{edit_context_id}")
 
         st.subheader("🧪 Material & Stock Source")
         ca_batches = db.query(StockSolutionBatch).filter(StockSolutionBatch.chemical_type == "Ca").all()
@@ -160,9 +163,9 @@ if is_designer:
             # Pce matching would required exact string match on source dict if we stored keys, but we stored result strings.
             # Skipping complex reverse lookup for PCE source string to ID for now.
         
-        ca_batch_selection = st.selectbox("Ca Stock Batch", options=["None"] + list(ca_opts.keys()), index=def_ca_idx)
-        si_batch_selection = st.selectbox("Si Stock Batch", options=["None"] + list(si_opts.keys()), index=def_si_idx)
-        pce_selection = st.selectbox("PCE Material Source", options=["None"] + list(pce_opts.keys()), index=def_pce_idx)
+        ca_batch_selection = st.selectbox("Ca Stock Batch", options=["None"] + list(ca_opts.keys()), index=def_ca_idx, key=f"ca_stock_{edit_context_id}")
+        si_batch_selection = st.selectbox("Si Stock Batch", options=["None"] + list(si_opts.keys()), index=def_si_idx, key=f"si_stock_{edit_context_id}")
+        pce_selection = st.selectbox("PCE Material Source", options=["None"] + list(pce_opts.keys()), index=def_pce_idx, key=f"pce_src_{edit_context_id}")
 
         # Fetch Brands automatically
         sel_ca_batch = db.query(StockSolutionBatch).filter(StockSolutionBatch.id == ca_opts.get(ca_batch_selection)).first()
@@ -178,24 +181,24 @@ if is_designer:
     with col2:
         st.subheader("📊 Mass Calculator (Real-time)")
         
-        target_val = st.number_input("Target Total Batch Mass (g)", min_value=1.0, value=415.0)
+        target_val = st.number_input("Target Total Batch Mass (g)", min_value=1.0, value=415.0, key=f"target_mass_{edit_context_id}")
         
         exp_params = st.expander("⚖️ Physical & Chemical Parameters", expanded=False)
         c_mw1, c_mw2 = exp_params.columns(2)
-        mw_si = c_mw1.number_input("MW Na2SiO3 (Anhy.)", value=122.10, format="%.2f", step=0.01)
-        mw_ca = c_mw2.number_input("MW Ca(NO3)2 (Anhy.)", value=164.08, format="%.2f", step=0.01)
+        mw_si = c_mw1.number_input("MW Na2SiO3 (Anhy.)", value=122.06, format="%.2f", step=0.01, key=f"mw_si_{edit_context_id}")
+        mw_ca = c_mw2.number_input("MW Ca(NO3)2 (Anhy.)", value=164.09, format="%.2f", step=0.01, key=f"mw_ca_{edit_context_id}")
         
         c_hyd1, c_hyd2 = exp_params.columns(2)
-        mw_si_hyd = c_hyd1.number_input("MW Na2SiO3.5H2O", value=212.14, format="%.2f")
-        mw_ca_hyd = c_hyd2.number_input("MW Ca(NO3)2.4H2O", value=236.15, format="%.2f")
+        mw_si_hyd = c_hyd1.number_input("MW Na2SiO3.5H2O", value=212.14, format="%.2f", key=f"mw_si_hyd_{edit_context_id}")
+        mw_ca_hyd = c_hyd2.number_input("MW Ca(NO3)2.4H2O", value=236.15, format="%.2f", key=f"mw_ca_hyd_{edit_context_id}")
 
         c_d1, c_d2 = exp_params.columns(2)
-        d_si = c_d1.number_input("Si Sol. Density (g/mL)", value=1.116, format="%.4f")
-        d_ca = c_d2.number_input("Ca Sol. Density (g/mL)", value=1.213, format="%.4f")
+        d_si = c_d1.number_input("Si Sol. Density (g/mL)", value=1.084, format="%.4f", key=f"dsi_{edit_context_id}")
+        d_ca = c_d2.number_input("Ca Sol. Density (g/mL)", value=1.150, format="%.4f", key=f"dca_{edit_context_id}")
         
         c_d3, c_d4 = exp_params.columns(2)
-        d_pce = c_d3.number_input("PCE Density (g/mL)", value=1.080, format="%.3f")
-        d_water = c_d4.number_input("Water Density (g/mL)", value=0.998, format="%.3f")
+        d_pce = c_d3.number_input("PCE Density (g/mL)", value=1.080, format="%.3f", key=f"dpce_{edit_context_id}")
+        d_water = c_d4.number_input("Water Density (g/mL)", value=0.998, format="%.3f", key=f"dwater_{edit_context_id}")
         
         # Stoichiometric Calculation
         S = mw_si + ca_si * mw_ca
@@ -315,11 +318,11 @@ if is_designer:
     d_notes = edit_recipe.process_config.get("procedure", "") if edit_recipe and edit_recipe.process_config else ""
     
     cp_c1, cp_c2, cp_c3 = st.columns(3)
-    rate_ca = cp_c1.number_input("Ca Addition Rate (mL/min)", value=d_rate_ca)
-    rate_si = cp_c2.number_input("Si Addition Rate (mL/min)", value=d_rate_si)
-    target_ph = cp_c3.number_input("Target pH", value=d_target_ph, step=0.1)
+    rate_ca = cp_c1.number_input("Ca Addition Rate (mL/min)", value=d_rate_ca, key=f"rate_ca_{edit_context_id}")
+    rate_si = cp_c2.number_input("Si Addition Rate (mL/min)", value=d_rate_si, key=f"rate_si_{edit_context_id}")
+    target_ph = cp_c3.number_input("Target pH", value=d_target_ph, step=0.1, key=f"ph_{edit_context_id}")
     
-    procedure_notes = st.text_area("Procedure Notes", value=d_notes, placeholder="e.g. 1. Dissolve PCX...\n2. Start feeding...", height=150)
+    procedure_notes = st.text_area("Procedure Notes", value=d_notes, placeholder="e.g. 1. Dissolve PCX...\n2. Start feeding...", height=150, key=f"notes_{edit_context_id}")
     
     p1d = predict_strength(ca_si, m_ca, solids, pce_dosage, target='1d')
     p28d = predict_strength(ca_si, m_ca, solids, pce_dosage, target='28d')
