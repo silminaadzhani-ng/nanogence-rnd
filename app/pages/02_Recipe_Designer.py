@@ -5,7 +5,7 @@ import pandas as pd
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.database import get_db, init_db
-from app.models import Recipe, StockSolutionBatch
+from app.models import Recipe, StockSolutionBatch, RawMaterial
 from app.ui_utils import display_logo
 from app.ml_utils import predict_strength
 
@@ -67,21 +67,29 @@ with tab1:
         pce_dosage = c5.number_input("PCE Dosage (%)", min_value=0.0, max_value=100.0, step=0.1, value=2.0)
         pce_conc = c6.number_input("PCE Solution Conc. (wt.%)", min_value=1.0, max_value=100.0, value=50.0)
 
-        st.subheader("🏢 Material Sourcing")
-        s1, s2 = st.columns(2)
-        source_ca = s1.text_input("Ca(NO3)2 Source", value="Carl Roth")
-        source_si = s2.text_input("Na2SiO3 Source", value="Carl Roth")
-        source_pce = st.text_input("PCE Brand/Source", value="Cromogenia PCX 50")
-
-        st.subheader("🧪 Stock Solution Source")
+        st.subheader("🧪 Material & Stock Source")
         ca_batches = db.query(StockSolutionBatch).filter(StockSolutionBatch.chemical_type == "Ca").all()
         si_batches = db.query(StockSolutionBatch).filter(StockSolutionBatch.chemical_type == "Si").all()
+        pce_materials = db.query(RawMaterial).filter(RawMaterial.chemical_type == "PCE").all()
         
         ca_opts = {f"{b.code} ({b.molarity}M)": b.id for b in ca_batches}
         si_opts = {f"{b.code} ({b.molarity}M)": b.id for b in si_batches}
+        pce_opts = {f"{m.material_name} (Lot: {m.lot_number})": m.brand for m in pce_materials}
         
-        ca_batch_id = st.selectbox("Ca Stock Batch", options=["None"] + list(ca_opts.keys()))
-        si_batch_id = st.selectbox("Si Stock Batch", options=["None"] + list(si_opts.keys()))
+        ca_batch_selection = st.selectbox("Ca Stock Batch", options=["None"] + list(ca_opts.keys()))
+        si_batch_selection = st.selectbox("Si Stock Batch", options=["None"] + list(si_opts.keys()))
+        pce_selection = st.selectbox("PCE Material Source", options=["None"] + list(pce_opts.keys()))
+
+        # Fetch Brands automatically
+        sel_ca_batch = db.query(StockSolutionBatch).filter(StockSolutionBatch.id == ca_opts.get(ca_batch_selection)).first()
+        sel_si_batch = db.query(StockSolutionBatch).filter(StockSolutionBatch.id == si_opts.get(si_batch_selection)).first()
+        
+        source_ca = sel_ca_batch.raw_material.brand if sel_ca_batch and sel_ca_batch.raw_material else "N/A"
+        source_si = sel_si_batch.raw_material.brand if sel_si_batch and sel_si_batch.raw_material else "N/A"
+        source_pce = pce_opts.get(pce_selection, "N/A")
+
+        st.subheader("🏢 Material Sourcing (Auto)")
+        st.info(f"**Ca Source:** {source_ca} | **Si Source:** {source_si} | **PCE Source:** {source_pce}")
 
     with col2:
         st.subheader("📊 Mass Calculator (Real-time)")
@@ -103,43 +111,53 @@ with tab1:
         MW_CA = 164.09
         st.caption(f"Using MW: Na2SiO3={MW_SI}, Ca(NO3)2={MW_CA}")
         S = MW_SI + ca_si * MW_CA
-        alpha = solids / 100.0
         pce_conc_factor = pce_conc / 100.0
-        
-        # Fixed to Total Mass (g)
+        # 1. Total Mass is the anchor
         m_total = target_val
         
-        # Calculate mineral masses first
-        n_si_mol = (m_total * alpha) / S
-        n_ca_mol = n_si_mol * ca_si
-        m_ca_anhydrous = n_ca_mol * MW_CA  # This is the actual Ca(NO3)2 reactant mass
+        # 2. Calculate Mineral Mass based on Target Solids %
+        # Interpretation: Target Solids % = (Mass of Anhydrous Ca + Mass of Anhydrous Si) / Total Batch Mass
+        target_mineral_mass = m_total * (solids / 100.0)
         
+        # target_mineral_mass = n_si * MW_SI + n_ca * MW_CA
+        #                     = n_si * MW_SI + (n_si * ca_si) * MW_CA
+        #                     = n_si * (MW_SI + ca_si * MW_CA)
+        
+        if S > 0:
+            n_si_mol = target_mineral_mass / S
+        else:
+            n_si_mol = 0
+            
+        n_ca_mol = n_si_mol * ca_si
+        m_ca_anhydrous = n_ca_mol * MW_CA
+        
+        # 3. Calculate PCE Mass
+        if pce_basis == "% of Ca(NO3)2 Reactant Mass":
+             # Basis: PCE Solid Mass = X% of Anhydrous Ca Mass
+             mass_pce_solid = m_ca_anhydrous * (pce_dosage / 100.0)
+             mass_pce_sol = mass_pce_solid / pce_conc_factor
+        else:
+            # Basis: PCE Solution Mass = X% of Total Batch Mass
+            # This matches Trial a1 logic where 2% dosage = 8.28g (approx 2% of 414g)
+            mass_pce_sol = m_total * (pce_dosage / 100.0)
+
+        # 4. Calculate Solution Volumes
         v_si_ml = (n_si_mol * 1000) / m_si if m_si > 0 else 0
         v_ca_ml = (n_ca_mol * 1000) / m_ca if m_ca > 0 else 0
+        v_pce_ml = mass_pce_sol / d_pce
         
+        # 5. Calculate Solution Masses
         mass_si_sol = v_si_ml * d_si
         mass_ca_sol = v_ca_ml * d_ca
         
-        # Calculate PCE based on selected basis
-        if pce_basis == "% of Ca(NO3)2 Reactant Mass":
-            # PCE dosage is % of the Ca(NO3)2 reactant mass
-            mass_pce_solid = m_ca_anhydrous * (pce_dosage / 100.0)
-            mass_pce_sol = mass_pce_solid / pce_conc_factor
-        else:
-            # PCE dosage is % of total batch mass
-            mass_pce_sol = m_total * (pce_dosage / 100.0)
-        
-        v_pce_ml = mass_pce_sol / d_pce
-        
+        # 6. Water is the remainder
         mass_water = m_total - mass_si_sol - mass_ca_sol - mass_pce_sol
         v_water_ml = mass_water / d_water
+        
         v_total = v_si_ml + v_ca_ml + v_pce_ml + v_water_ml
 
-        display_source_ca = ca_batch_id if ca_batch_id != "None" else source_ca
-        display_source_si = si_batch_id if si_batch_id != "None" else source_si
-
-        display_source_ca = ca_batch_id if ca_batch_id != "None" else source_ca
-        display_source_si = si_batch_id if si_batch_id != "None" else source_si
+        display_source_ca = ca_batch_selection if ca_batch_selection != "None" else "Manual"
+        display_source_si = si_batch_selection if si_batch_selection != "None" else "Manual"
 
         # Calculate solid masses for table display
         solid_mass_si = (n_si_mol * MW_SI) / 1000.0 * 1000.0 # g
@@ -236,8 +254,8 @@ with tab1:
                     ca_addition_rate=rate_ca,
                     si_addition_rate=rate_si,
                     target_ph=target_ph,
-                    ca_stock_batch_id=ca_opts.get(ca_batch_id),
-                    si_stock_batch_id=si_opts.get(si_batch_id),
+                    ca_stock_batch_id=ca_opts.get(ca_batch_selection),
+                    si_stock_batch_id=si_opts.get(si_batch_selection),
                     process_config=proc_config,
                     created_by="Silmina Adzhani"
                 )
