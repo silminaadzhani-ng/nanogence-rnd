@@ -78,7 +78,7 @@ with tab1:
         mat_data = []
         for m in materials:
             mat_data.append({
-                "Select": False,
+                "ID": str(m.id), # Keep ID for deletion logic
                 "Received": m.received_date.strftime("%Y-%m-%d"),
                 "Material": m.material_name,
                 "Lot #": m.lot_number,
@@ -89,39 +89,33 @@ with tab1:
         
         df_materials = pd.DataFrame(mat_data)
         
-        # Use data_editor with checkboxes for easier multi-selection
-        edited_df = st.data_editor(
-            df_materials,
-            use_container_width=True,
+        # Use built-in multi-row selection for robustness
+        event = st.dataframe(
+            df_materials, 
+            use_container_width=True, 
             hide_index=True,
-            column_config={
-                "Select": st.column_config.CheckboxColumn(
-                    "Select",
-                    help="Select materials to delete",
-                    default=False,
-                )
-            },
-            disabled=["Received", "Material", "Lot #", "MW", "Qty (kg)", "Brand"],
-            key="rm_editor"
+            on_select="rerun",
+            selection_mode="multi-row",
+            column_order=["Received", "Material", "Lot #", "MW", "Qty (kg)", "Brand"] # Hide the technical ID from the user
         )
         
-        selected_mats = edited_df[edited_df["Select"] == True]
-        
-        if not selected_mats.empty:
-            st.warning(f"⚠️ You have selected {len(selected_mats)} materials.")
-            if st.button("🗑️ Delete Selected Materials", type="primary", key="del_rm_btn"):
-                deleted_count = 0
-                for _, row in selected_mats.iterrows():
-                    target = db.query(RawMaterial).filter(
-                        RawMaterial.material_name == row['Material'], 
-                        RawMaterial.lot_number == row['Lot #']
-                    ).first()
-                    if target:
-                        db.delete(target)
-                        deleted_count += 1
-                db.commit()
-                st.success(f"Successfully deleted {deleted_count} materials.")
-                st.rerun()
+        selected_row_indices = event.selection.rows
+        if selected_row_indices:
+            st.warning(f"⚠️ {len(selected_row_indices)} material(s) selected.")
+            if st.button("🗑️ Delete Selected Materials", type="primary"):
+                try:
+                    deleted_count = 0
+                    for idx in selected_row_indices:
+                        target_id = mat_data[idx]["ID"]
+                        target = db.query(RawMaterial).filter(RawMaterial.id == target_id).first()
+                        if target:
+                            db.delete(target)
+                            deleted_count += 1
+                    db.commit()
+                    st.success(f"✅ Successfully deleted {deleted_count} material(s).")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Deletion failed: {e}")
     else:
         st.info("No raw materials logged yet.")
 
@@ -140,7 +134,8 @@ with tab2:
             with col1:
                 prep_date = st.date_input("Preparation Date", value=datetime.date.today(), key="prep_date")
                 selected_rm_key = st.selectbox("Source Raw Material", options=list(rm_options.keys()))
-                selected_rm = db.query(RawMaterial).filter(RawMaterial.id == rm_options[selected_rm_key]).first()
+                selected_rm_id = rm_options[selected_rm_key]
+                selected_rm = db.query(RawMaterial).filter(RawMaterial.id == selected_rm_id).first()
                 
                 target_m = st.number_input("Target Molarity (mol/L)", min_value=0.01, step=0.01, value=1.50 if "Ca" in selected_rm.chemical_type else 0.75)
                 target_v = st.number_input("Target Volume (mL)", min_value=1.0, step=10.0, value=1000.0)
@@ -192,7 +187,7 @@ with tab2:
             for b in batches:
                 source_lot = b.raw_material.lot_number if b.raw_material else "N/A"
                 ss_data.append({
-                    "Select": False,
+                    "ID": str(b.id),
                     "Code": b.code,
                     "Type": b.chemical_type,
                     "Molarity": b.molarity,
@@ -204,34 +199,32 @@ with tab2:
                 })
             
             df_ss = pd.DataFrame(ss_data)
-            edited_ss_df = st.data_editor(
-                df_ss,
-                use_container_width=True,
+            event_ss = st.dataframe(
+                df_ss, 
+                use_container_width=True, 
                 hide_index=True,
-                column_config={
-                    "Select": st.column_config.CheckboxColumn(
-                        "Select",
-                        help="Select batches to delete",
-                        default=False,
-                    )
-                },
-                disabled=["Code", "Type", "Molarity", "Volume (mL)", "Mass (g)", "Source Lot", "Prep Date", "Operator"],
-                key="ss_editor"
+                on_select="rerun",
+                selection_mode="multi-row",
+                key="df_ss_table",
+                column_order=["Code", "Type", "Molarity", "Volume (mL)", "Mass (g)", "Source Lot", "Prep Date", "Operator"]
             )
             
-            selected_ss = edited_ss_df[edited_ss_df["Select"] == True]
-            
-            if not selected_ss.empty:
-                st.warning(f"⚠️ You have selected {len(selected_ss)} batches.")
-                if st.button("🗑️ Delete Selected Batches", type="primary", key="del_ss_btn"):
-                    deleted_count = 0
-                    for _, row in selected_ss.iterrows():
-                        target = db.query(StockSolutionBatch).filter(StockSolutionBatch.code == row['Code']).first()
-                        if target:
-                            db.delete(target)
-                            deleted_count += 1
-                    db.commit()
-                    st.success(f"Successfully deleted {deleted_count} batches.")
-                    st.rerun()
+            selected_ss_indices = event_ss.selection.rows
+            if selected_ss_indices:
+                st.warning(f"⚠️ {len(selected_ss_indices)} batch(es) selected.")
+                if st.button("🗑️ Delete Selected Batches", type="primary"):
+                    try:
+                        del_ss_count = 0
+                        for idx in selected_ss_indices:
+                            target_ss_id = ss_data[idx]["ID"]
+                            target = db.query(StockSolutionBatch).filter(StockSolutionBatch.id == target_ss_id).first()
+                            if target:
+                                db.delete(target)
+                                del_ss_count += 1
+                        db.commit()
+                        st.success(f"✅ Successfully deleted {del_ss_count} batch(es).")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Deletion failed: {e}")
         else:
             st.info("No active stock solutions found.")
