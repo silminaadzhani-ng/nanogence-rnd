@@ -35,6 +35,12 @@ def generate_recipe_code():
 if 'edit_recipe_id' not in st.session_state:
     st.session_state.edit_recipe_id = None
 
+# Handle Success Notifications
+if 'success_msg' in st.session_state and st.session_state.success_msg:
+    st.toast(st.session_state.success_msg, icon="✅")
+    st.success(st.session_state.success_msg)
+    del st.session_state.success_msg
+
 edit_recipe = None
 if st.session_state.edit_recipe_id:
     # Use UUID to quarry
@@ -326,7 +332,8 @@ with tab1:
                     # Keep existing code and created_by
                     
                     db.commit()
-                    st.success(f"Recipe '{name}' updated successfully!")
+                    db.commit()
+                    st.session_state.success_msg = f"Recipe '{name}' updated successfully!"
                     st.session_state.edit_recipe_id = None # Exit edit mode
                     st.rerun()
                 else:
@@ -351,7 +358,8 @@ with tab1:
                     )
                     db.add(new_recipe)
                     db.commit()
-                    st.success(f"Recipe '{name}' ({d_code}) saved!")
+                    db.commit()
+                    st.session_state.success_msg = f"Recipe '{name}' ({d_code}) saved!"
                     st.rerun()
             except Exception as e:
                 st.error(f"Error: {str(e)}")
@@ -421,7 +429,8 @@ with tab2:
                         if target:
                             db.delete(target)
                             db.commit()
-                            st.success(f"Recipe '{selected_label}' deleted.")
+                            db.commit()
+                            st.session_state.success_msg = f"Recipe '{selected_label}' deleted."
                             st.rerun()
     else:
         st.info("No recipes found in the library.")
