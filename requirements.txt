@@ -6,3 +6,6 @@ plotly
 scikit-learn
 xgboost
 python-dotenv
+numpy
+openpyxl
+pyngrok
