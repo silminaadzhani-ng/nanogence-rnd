@@ -206,23 +206,32 @@ with tab2:
     if recipes:
         lib_data = []
         for r in recipes:
-            ca_batch_code = r.ca_stock_batch.code if r.ca_stock_batch else "N/A"
-            si_batch_code = r.si_stock_batch.code if r.si_stock_batch else "N/A"
-            lib_data.append({
-                "Name": r.name,
-                "Date": r.recipe_date.strftime("%Y-%m-%d") if r.recipe_date else "N/A",
-                "Ca/Si": r.ca_si_ratio,
-                "Solids %": r.total_solid_content,
-                "Ca M": r.molarity_ca_no3,
-                "Si M": r.molarity_na2sio3,
-                "PCE %": r.pce_content_wt,
-                "Target pH": r.target_ph,
-                "Ca Batch": ca_batch_code,
-                "Si Batch": si_batch_code,
-                "Ca Rate": r.ca_addition_rate,
-                "Si Rate": r.si_addition_rate,
-            })
-        st.dataframe(lib_data, use_container_width=True)
+            try:
+                ca_batch_code = r.ca_stock_batch.code if r.ca_stock_batch else "N/A"
+                si_batch_code = r.si_stock_batch.code if r.si_stock_batch else "N/A"
+                lib_data.append({
+                    "Name": r.name,
+                    "Date": r.recipe_date.strftime("%Y-%m-%d") if r.recipe_date else "N/A",
+                    "Ca/Si": r.ca_si_ratio,
+                    "Solids %": r.total_solid_content,
+                    "Ca M": r.molarity_ca_no3,
+                    "Si M": r.molarity_na2sio3,
+                    "PCE %": r.pce_content_wt,
+                    "Target pH": r.target_ph,
+                    "Ca Batch": ca_batch_code,
+                    "Si Batch": si_batch_code,
+                    "Ca Rate": r.ca_addition_rate,
+                    "Si Rate": r.si_addition_rate,
+                })
+            except Exception as e:
+                st.error(f"Error loading recipe '{r.name}': {e}")
+        
+        if lib_data:
+            st.dataframe(lib_data, use_container_width=True)
+        else:
+            st.warning("Data found but could not be processed into the table.")
+    else:
+        st.info("No recipes found matching your search. Try clearing the search box.")
         
         with st.expander("🗑️ Delete Recipes", expanded=False):
             recipe_to_delete = st.selectbox("Select Recipe to Remove", options=[r.name for r in recipes], key="del_recipe")
