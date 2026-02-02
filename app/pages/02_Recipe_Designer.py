@@ -132,6 +132,9 @@ if is_designer:
         c5, c6 = st.columns(2)
         pce_dosage = c5.number_input("PCE Dosage (%)", min_value=0.0, max_value=100.0, step=0.1, value=d_pce_dosage)
         pce_conc = c6.number_input("PCE Solution Conc. (wt.%)", min_value=1.0, max_value=100.0, value=d_pce_conc)
+        
+        # Re-introducing PCE Dosage Basis Selection
+        pce_basis = st.selectbox("PCE Dosage Basis", ["% of Total Batch Mass", "% of Ca(NO3)2 Reactant Mass"], index=0)
 
         st.subheader("🧪 Material & Stock Source")
         ca_batches = db.query(StockSolutionBatch).filter(StockSolutionBatch.chemical_type == "Ca").all()
@@ -209,8 +212,11 @@ if is_designer:
         n_ca_mol = n_si_mol * ca_si
         m_ca_anhydrous = n_ca_mol * MW_CA
         
-        # 3. Calculate PCE Mass (Always % of Total Batch Mass)
-        mass_pce_sol = m_total * (pce_dosage / 100.0)
+        # 3. Calculate PCE Mass
+        if pce_basis == "% of Total Batch Mass":
+            mass_pce_sol = m_total * (pce_dosage / 100.0)
+        else: # % of Ca(NO3)2 Reactant Mass
+            mass_pce_sol = (m_ca_anhydrous * (pce_dosage / 100.0)) / (pce_conc / 100.0)
 
         # 4. Calculate Solution Volumes
         v_si_ml = (n_si_mol * 1000) / m_si if m_si > 0 else 0
