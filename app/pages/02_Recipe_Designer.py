@@ -64,7 +64,7 @@ with tab1:
         m_si = c4.number_input("Na2SiO3 Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=0.75)
         
         c5, c6 = st.columns(2)
-        pce_dosage = c5.number_input("PCE Dosage (%)", min_value=0.0, max_value=100.0, step=0.1, value=2.0)
+        pce_dosage = c5.number_input("PCE Dosage (%)", min_value=0.0, max_value=100.0, step=0.1, value=2.5)
         pce_conc = c6.number_input("PCE Solution Conc. (wt.%)", min_value=1.0, max_value=100.0, value=50.0)
 
         st.subheader("🧪 Material & Stock Source")
@@ -96,11 +96,9 @@ with tab1:
         
         target_val = st.number_input("Target Total Batch Mass (g)", min_value=1.0, value=415.0)
         
-        
-        
         exp_densities = st.expander("Solution Densities (g/mL)", expanded=False)
-        d_ca = exp_densities.number_input("Ca Solution Density", value=1.401, format="%.3f")
-        d_si = exp_densities.number_input("Si Solution Density", value=1.230, format="%.3f")
+        d_ca = exp_densities.number_input("Ca Solution Density", value=1.150, format="%.3f")
+        d_si = exp_densities.number_input("Si Solution Density", value=1.084, format="%.3f")
         d_pce = exp_densities.number_input("PCE Solution Density", value=1.080, format="%.3f")
         d_water = exp_densities.number_input("Water Density", value=0.998, format="%.3f")
         
