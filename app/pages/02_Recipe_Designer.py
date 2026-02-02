@@ -10,8 +10,12 @@ from app.ui_utils import display_logo
 import uuid
 from app.ml_utils import predict_strength
 
-# Ensure database is synced
-init_db()
+# Ensure database is synced (Cached to run once)
+@st.cache_resource
+def ensure_db_initialized():
+    init_db()
+
+ensure_db_initialized()
 
 st.set_page_config(page_title="Recipe Designer", page_icon="📝", layout="wide")
 display_logo()
