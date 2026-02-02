@@ -313,10 +313,10 @@ if is_designer:
     st.divider()
     st.subheader("Process Parameters")
     
-    # Defaults from edit_recipe if available
-    d_rate_ca = edit_recipe.ca_addition_rate if edit_recipe else 0.5
-    d_rate_si = edit_recipe.si_addition_rate if edit_recipe else 0.5
-    d_target_ph = edit_recipe.target_ph if edit_recipe else 11.5
+    # Defaults from edit_recipe if available (None forces user input)
+    d_rate_ca = edit_recipe.ca_addition_rate if edit_recipe else None
+    d_rate_si = edit_recipe.si_addition_rate if edit_recipe else None
+    d_target_ph = edit_recipe.target_ph if edit_recipe else None
     d_notes = edit_recipe.process_config.get("procedure", "") if edit_recipe and edit_recipe.process_config else ""
     d_seq = edit_recipe.process_config.get("feeding_sequence", "a. Calcium and silicate solutions dropped in PCE") if edit_recipe and edit_recipe.process_config else "a. Calcium and silicate solutions dropped in PCE"
     
@@ -365,6 +365,9 @@ if is_designer:
         if m_ca is None: errors.append("Ca Molarity")
         if m_si is None: errors.append("Si Molarity")
         if pce_dosage is None: errors.append("PCE Dosage")
+        if rate_ca is None: errors.append("Ca Addition Rate")
+        if rate_si is None: errors.append("Si Addition Rate")
+        if target_ph is None: errors.append("Target pH")
         
         if ca_batch_selection == "None": errors.append("Ca Stock Batch")
         if si_batch_selection == "None": errors.append("Si Stock Batch")
