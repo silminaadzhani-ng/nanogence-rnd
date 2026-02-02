@@ -1,5 +1,6 @@
 import streamlit as st
 import datetime
+import pandas as pd
 from sqlalchemy.orm import Session
 from app.database import get_db, init_db
 from app.models import StockSolutionBatch, RawMaterial
@@ -84,28 +85,37 @@ with tab1:
                 "Qty (kg)": m.remaining_quantity_kg,
                 "Brand": m.brand,
             })
-        st.dataframe(mat_data, use_container_width=True)
-    else:
-        st.info("No raw materials logged yet.")
-
-    if materials:
-        with st.expander("🗑️ Delete Raw Material", expanded=False):
-            mat_to_delete = st.selectbox(
-                "Select Material to Remove", 
-                options=[f"{m.material_name} (Lot: {m.lot_number})" for m in materials],
-                key="del_mat_select"
-            )
-            if st.button("Confirm Delete Material", type="primary"):
-                # Parse back to get lot number and name
-                # Simple lookup by index or name/lot combo
-                selected_name = mat_to_delete.split(" (Lot: ")[0]
-                selected_lot = mat_to_delete.split(" (Lot: ")[1].rstrip(")")
-                target = db.query(RawMaterial).filter(RawMaterial.material_name == selected_name, RawMaterial.lot_number == selected_lot).first()
+        
+        df_materials = pd.DataFrame(mat_data)
+        
+        # Enable single-row selection in the dataframe
+        event = st.dataframe(
+            df_materials, 
+            use_container_width=True, 
+            hide_index=True,
+            on_select="rerun",
+            selection_mode="single_row"
+        )
+        
+        # Check if a row is selected
+        selected_rows = event.selection.rows
+        if selected_rows:
+            idx = selected_rows[0]
+            selected_mat = mat_data[idx]
+            st.info(f"📍 Selected: **{selected_mat['Material']}** (Lot: {selected_mat['Lot #']})")
+            
+            if st.button("🗑️ Delete Selected Material", type="primary"):
+                target = db.query(RawMaterial).filter(
+                    RawMaterial.material_name == selected_mat['Material'], 
+                    RawMaterial.lot_number == selected_mat['Lot #']
+                ).first()
                 if target:
                     db.delete(target)
                     db.commit()
-                    st.success(f"Material {mat_to_delete} deleted.")
+                    st.success(f"Material {selected_mat['Material']} deleted.")
                     st.rerun()
+    else:
+        st.info("No raw materials logged yet.")
 
 with tab2:
     st.subheader("Prepare and Manage Stock Solutions")
@@ -170,10 +180,10 @@ with tab2:
         st.subheader("Active Stock Solutions")
         batches = db.query(StockSolutionBatch).order_by(StockSolutionBatch.created_at.desc()).all()
         if batches:
-            data = []
+            ss_data = []
             for b in batches:
                 source_lot = b.raw_material.lot_number if b.raw_material else "N/A"
-                data.append({
+                ss_data.append({
                     "Code": b.code,
                     "Type": b.chemical_type,
                     "Molarity": b.molarity,
@@ -183,17 +193,29 @@ with tab2:
                     "Prep Date": b.preparation_date.strftime("%Y-%m-%d") if b.preparation_date else "N/A",
                     "Operator": b.operator
                 })
-            st.dataframe(data, use_container_width=True)
             
-            # Add Delete Option
-            with st.expander("🗑️ Delete Batch", expanded=False):
-                del_code = st.selectbox("Select Batch to Delete", options=[b.code for b in batches])
-                if st.button("Confirm Delete Batch", type="primary"):
-                    target = db.query(StockSolutionBatch).filter(StockSolutionBatch.code == del_code).first()
+            df_ss = pd.DataFrame(ss_data)
+            event_ss = st.dataframe(
+                df_ss, 
+                use_container_width=True, 
+                hide_index=True,
+                on_select="rerun",
+                selection_mode="single_row",
+                key="df_ss"
+            )
+            
+            selected_ss_rows = event_ss.selection.rows
+            if selected_ss_rows:
+                ss_idx = selected_ss_rows[0]
+                selected_ss = ss_data[ss_idx]
+                st.info(f"📍 Selected: **{selected_ss['Code']}**")
+                
+                if st.button("🗑️ Delete Selected Batch", type="primary"):
+                    target = db.query(StockSolutionBatch).filter(StockSolutionBatch.code == selected_ss['Code']).first()
                     if target:
                         db.delete(target)
                         db.commit()
-                        st.success(f"Batch {del_code} deleted.")
+                        st.success(f"Batch {selected_ss['Code']} deleted.")
                         st.rerun()
         else:
             st.info("No active stock solutions found.")
