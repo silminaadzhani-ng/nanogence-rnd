@@ -131,10 +131,10 @@ with tab2:
 
             st.markdown("#### General Properties")
             c1, c2, c3, c4 = st.columns(4)
-            final_ph = c1.number_input("Final pH", value=11.50)
-            final_solids = c2.number_input("Final Solids content (%)", value=5.0)
-            settling = c3.number_input("Settling Height (mm)", value=0.0)
-            final_form = c4.selectbox("Final Form", ["Suspension", "Gelified", "Precipitate", "Other"])
+            final_form = c1.selectbox("Final Form", ["Suspension", "Gelified", "Precipitate", "Other"])
+            final_ph = c2.number_input("Final pH", value=11.50)
+            final_solids = c3.number_input("Final Solids content (%)", value=5.0)
+            settling = c4.number_input("Settling Height (mm)", value=0.0)
 
             st.markdown("#### Particle Size Analysis (PSD)")
             psd_rows = ["d10 (µm)", "d50 (µm)", "d90 (µm)", "Mean (µm)", "SSA (m²/cm³)"]
