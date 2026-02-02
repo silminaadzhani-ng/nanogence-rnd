@@ -20,10 +20,10 @@ CHEMICALS = {
     "NaOH": {"mw": 40.00, "type": "NaOH"}
 }
 
-tab1, tab2, tab3 = st.tabs(["🏛️ Raw Material Inventory", "➕ Prepare Stock Solution", "📚 Stock Solution Library"])
+tab1, tab2 = st.tabs(["🏛️ Raw Material Inventory", "🧪 Stock Solution Management"])
 
 with tab1:
-    st.subheader("Manage Raw Materials")
+    st.subheader("Raw Material Inventory")
     
     with st.expander("📥 Log New Received Material", expanded=False):
         c1, c2 = st.columns(2)
@@ -32,10 +32,8 @@ with tab1:
             if mat_name == "Other":
                 mat_name = st.text_input("Custom Material Name")
             
-            # Auto-suggest MW from defaults or allow manual entry
             default_mw = CHEMICALS.get(mat_name, {}).get("mw", 100.0)
             mw_input = st.number_input("Molecular Weight (hydrate basis, g/mol)", min_value=0.1, value=default_mw, format="%.2f")
-            
             brand = st.text_input("Brand / Supplier", value="Carl Roth")
         
         with c2:
@@ -74,104 +72,109 @@ with tab1:
                 st.error(f"Error: {str(e)}")
 
     st.divider()
-    st.subheader("Current Raw Material Stock")
     materials = db.query(RawMaterial).order_by(RawMaterial.received_date.desc()).all()
     if materials:
         mat_data = []
         for m in materials:
             mat_data.append({
-                "ID": str(m.id)[:8],
+                "Received": m.received_date.strftime("%Y-%m-%d"),
                 "Material": m.material_name,
                 "Lot #": m.lot_number,
                 "MW": m.molecular_weight,
                 "Qty (kg)": m.remaining_quantity_kg,
                 "Brand": m.brand,
-                "Received": m.received_date.strftime("%Y-%m-%d")
             })
         st.dataframe(mat_data, use_container_width=True)
     else:
         st.info("No raw materials logged yet.")
 
 with tab2:
-    st.subheader("Prepare Stock Solution")
+    st.subheader("Prepare and Manage Stock Solutions")
     
     # Fetch RM options
     rm_list = db.query(RawMaterial).all()
     rm_options = {f"{m.material_name} (Lot: {m.lot_number})": m.id for m in rm_list}
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        prep_date = st.date_input("Preparation Date", value=datetime.date.today(), key="prep_date")
-        
-        selected_rm_key = st.selectbox("Source Raw Material", options=list(rm_options.keys()), help="Select from existing inventory")
-        selected_rm = db.query(RawMaterial).filter(RawMaterial.id == rm_options[selected_rm_key]).first()
-        
-        target_m = st.number_input("Target Molarity (mol/L)", min_value=0.01, step=0.01, value=1.50 if "Ca" in selected_rm.chemical_type else 0.75)
-        target_v = st.number_input("Target Volume (mL)", min_value=1.0, step=10.0, value=1000.0)
-        
-        # Calculation Logic using RM molecular weight
-        mw = selected_rm.molecular_weight if selected_rm.molecular_weight else 100.0
-        # Account for purity? Usually, mass_req = n * MW / Purity
-        required_mass = target_m * (target_v / 1000.0) * mw / (selected_rm.purity_percent / 100.0)
-        
-        st.metric("Required Mass (g)", f"{required_mass:.2f} g")
-        st.caption(f"Based on MW: {mw} g/mol and Purity: {selected_rm.purity_percent}%")
-        
-    with col2:
-        # Automated Batch Code Logic
-        chem_type = selected_rm.chemical_type
-        date_str = prep_date.strftime("%Y%m%d")
-        prefix = f"{chem_type[:2].upper()}-{date_str}-"
-        
-        count = db.query(StockSolutionBatch).filter(StockSolutionBatch.code.like(f"{prefix}%")).count()
-        suggested_code = f"{prefix}{count + 1:02d}"
-        
-        batch_code = st.text_input("Batch Code", value=suggested_code)
-        actual_mass = st.number_input("Actual Mass Weighed (g)", step=0.01, value=required_mass)
-        operator = st.text_input("Operator", value="Silmina Adzhani")
-        notes = st.text_area("Notes", key="batch_notes")
-
-    if st.button("Save Stock Batch"):
-        if not batch_code:
-            st.error("Batch Code is required.")
-        else:
-            try:
-                new_batch = StockSolutionBatch(
-                    code=batch_code,
-                    chemical_type=selected_rm.chemical_type,
-                    molarity=target_m,
-                    target_volume_ml=target_v,
-                    actual_mass_g=actual_mass,
-                    preparation_date=datetime.datetime.combine(prep_date, datetime.time.min),
-                    raw_material_id=selected_rm.id,
-                    operator=operator,
-                    notes=notes
-                )
-                db.add(new_batch)
-                db.commit()
-                st.success(f"Batch {batch_code} saved! Link to Lot {selected_rm.lot_number} established.")
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
-
-with tab3:
-    st.subheader("Inventory of Prepared Solutions")
-    batches = db.query(StockSolutionBatch).order_by(StockSolutionBatch.created_at.desc()).all()
-    
-    if batches:
-        data = []
-        for b in batches:
-            source_lot = b.raw_material.lot_number if b.raw_material else "N/A"
-            data.append({
-                "Code": b.code,
-                "Type": b.chemical_type,
-                "Molarity": b.molarity,
-                "Volume (mL)": b.target_volume_ml,
-                "Mass (g)": b.actual_mass_g,
-                "Source Lot": source_lot,
-                "Prep Date": b.preparation_date.strftime("%Y-%m-%d") if b.preparation_date else "N/A",
-                "Operator": b.operator
-            })
-        st.dataframe(data, use_container_width=True)
+    if not rm_options:
+        st.warning("Please log raw materials first to prepare stock solutions.")
     else:
-        st.info("No batches found.")
+        with st.expander("➕ Prepare New Batch", expanded=False):
+            col1, col2 = st.columns(2)
+            with col1:
+                prep_date = st.date_input("Preparation Date", value=datetime.date.today(), key="prep_date")
+                selected_rm_key = st.selectbox("Source Raw Material", options=list(rm_options.keys()))
+                selected_rm = db.query(RawMaterial).filter(RawMaterial.id == rm_options[selected_rm_key]).first()
+                
+                target_m = st.number_input("Target Molarity (mol/L)", min_value=0.01, step=0.01, value=1.50 if "Ca" in selected_rm.chemical_type else 0.75)
+                target_v = st.number_input("Target Volume (mL)", min_value=1.0, step=10.0, value=1000.0)
+                
+                mw = selected_rm.molecular_weight if selected_rm.molecular_weight else 100.0
+                required_mass = target_m * (target_v / 1000.0) * mw / (selected_rm.purity_percent / 100.0)
+                st.metric("Required Mass (g)", f"{required_mass:.2f} g")
+                
+            with col2:
+                chem_type = selected_rm.chemical_type
+                date_str = prep_date.strftime("%Y%m%d")
+                prefix = f"{chem_type[:2].upper()}-{date_str}-"
+                count = db.query(StockSolutionBatch).filter(StockSolutionBatch.code.like(f"{prefix}%")).count()
+                suggested_code = f"{prefix}{count + 1:02d}"
+                
+                batch_code = st.text_input("Batch Code", value=suggested_code)
+                actual_mass = st.number_input("Actual Mass Weighed (g)", step=0.01, value=required_mass)
+                operator = st.text_input("Operator", value="Silmina Adzhani")
+                notes = st.text_area("Notes", key="batch_notes")
+
+            if st.button("Save Stock Batch"):
+                if not batch_code:
+                    st.error("Batch Code is required.")
+                else:
+                    try:
+                        new_batch = StockSolutionBatch(
+                            code=batch_code,
+                            chemical_type=selected_rm.chemical_type,
+                            molarity=target_m,
+                            target_volume_ml=target_v,
+                            actual_mass_g=actual_mass,
+                            preparation_date=datetime.datetime.combine(prep_date, datetime.time.min),
+                            raw_material_id=selected_rm.id,
+                            operator=operator,
+                            notes=notes
+                        )
+                        db.add(new_batch)
+                        db.commit()
+                        st.success(f"Batch {batch_code} saved!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+
+        st.divider()
+        st.subheader("Active Stock Solutions")
+        batches = db.query(StockSolutionBatch).order_by(StockSolutionBatch.created_at.desc()).all()
+        if batches:
+            data = []
+            for b in batches:
+                source_lot = b.raw_material.lot_number if b.raw_material else "N/A"
+                data.append({
+                    "Code": b.code,
+                    "Type": b.chemical_type,
+                    "Molarity": b.molarity,
+                    "Volume (mL)": b.target_volume_ml,
+                    "Mass (g)": b.actual_mass_g,
+                    "Source Lot": source_lot,
+                    "Prep Date": b.preparation_date.strftime("%Y-%m-%d") if b.preparation_date else "N/A",
+                    "Operator": b.operator
+                })
+            st.dataframe(data, use_container_width=True)
+            
+            # Add Delete Option
+            with st.expander("🗑️ Delete Batch", expanded=False):
+                del_code = st.selectbox("Select Batch to Delete", options=[b.code for b in batches])
+                if st.button("Confirm Delete Batch", type="primary"):
+                    target = db.query(StockSolutionBatch).filter(StockSolutionBatch.code == del_code).first()
+                    if target:
+                        db.delete(target)
+                        db.commit()
+                        st.success(f"Batch {del_code} deleted.")
+                        st.rerun()
+        else:
+            st.info("No active stock solutions found.")
