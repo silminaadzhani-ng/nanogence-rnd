@@ -228,19 +228,15 @@ with tab2:
         
         if lib_data:
             st.dataframe(lib_data, use_container_width=True)
-        else:
-            st.warning("Data found but could not be processed into the table.")
-    else:
-        st.info("No recipes found matching your search. Try clearing the search box.")
-        
-        with st.expander("🗑️ Delete Recipes", expanded=False):
-            recipe_to_delete = st.selectbox("Select Recipe to Remove", options=[r.name for r in recipes], key="del_recipe")
-            if st.button("Confirm Delete", type="primary"):
-                target = db.query(Recipe).filter(Recipe.name == recipe_to_delete).first()
-                if target:
-                    db.delete(target)
-                    db.commit()
-                    st.success(f"Recipe '{recipe_to_delete}' deleted.")
-                    st.rerun()
+            
+            with st.expander("🗑️ Delete Recipes", expanded=False):
+                recipe_to_delete = st.selectbox("Select Recipe to Remove", options=[r.name for r in recipes], key="del_recipe")
+                if st.button("Confirm Delete", type="primary"):
+                    target = db.query(Recipe).filter(Recipe.name == recipe_to_delete).first()
+                    if target:
+                        db.delete(target)
+                        db.commit()
+                        st.success(f"Recipe '{recipe_to_delete}' deleted.")
+                        st.rerun()
     else:
         st.info("No recipes found in the library.")
