@@ -76,7 +76,14 @@ with tab1:
 with tab2:
     st.subheader("1. Select Recipe from Library")
     
-    recipes = db.query(Recipe).order_by(Recipe.name.asc()).all()
+    # Recipe Search Bar
+    search_query = st.text_input("🔍 Search Recipe Name", placeholder="e.g. Trial A1", key="recipe_search_qc")
+
+    query = db.query(Recipe).order_by(Recipe.name.asc())
+    if search_query:
+        query = query.filter(Recipe.name.ilike(f"%{search_query}%"))
+    
+    recipes = query.all()
     recipe_table_data = []
     for r in recipes:
         recipe_table_data.append({
