@@ -38,6 +38,9 @@ class Recipe(Base):
     total_solid_content = Column(Float)
     pce_content_wt = Column(Float)
     
+    # Material Sourcing
+    material_sources = Column(JSON, default=dict) # e.g. {"ca": "Carl Roth", "si": "Sigma", "pce": "BASF"}
+    
     # Stock solution link
     ca_stock_batch_id = Column(UUID(as_uuid=True), ForeignKey('stock_solution_batches.id'), nullable=True)
     si_stock_batch_id = Column(UUID(as_uuid=True), ForeignKey('stock_solution_batches.id'), nullable=True)

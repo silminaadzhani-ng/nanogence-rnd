@@ -44,6 +44,12 @@ with st.form("recipe_form"):
         pce_dosage = c5.number_input("PCE Dosage (wt.% of solids)", min_value=0.0, max_value=50.0, step=0.1, value=2.0)
         pce_conc = c6.number_input("PCE Solution Conc. (wt.%)", min_value=1.0, max_value=100.0, value=50.0)
 
+        st.subheader("🏢 Material Sourcing")
+        s1, s2 = st.columns(2)
+        source_ca = s1.text_input("Ca(NO3)2 Source", value="Carl Roth")
+        source_si = s2.text_input("Na2SiO3 Source", value="Carl Roth")
+        source_pce = st.text_input("PCE Brand/Source", value="Cromogenia PCX 50")
+
         st.subheader("🧪 Stock Solution Source")
         # Fetch available batches
         ca_batches = db.query(StockSolutionBatch).filter(StockSolutionBatch.chemical_type == "Ca").all()
@@ -100,9 +106,9 @@ with st.form("recipe_form"):
         mass_water = target_total_mass - mass_si_sol - mass_ca_sol - mass_pce_sol
         
         calc_data = [
-            {"Ingredient": "Na2SiO3 Solution", "Source": "Stock Si", "Conc.": f"{m_si} M", "Mass (g)": f"{mass_si_sol:.2f}"},
-            {"Ingredient": "Ca(NO3)2 Solution", "Source": "Stock Ca", "Conc.": f"{m_ca} M", "Mass (g)": f"{mass_ca_sol:.2f}"},
-            {"Ingredient": "PCE Solution", "Source": "Cromogenia", "Conc.": f"{pce_conc}%", "Mass (g)": f"{mass_pce_sol:.2f}"},
+            {"Ingredient": "Na2SiO3 Solution", "Source": source_si, "Conc.": f"{m_si} M", "Mass (g)": f"{mass_si_sol:.2f}"},
+            {"Ingredient": "Ca(NO3)2 Solution", "Source": source_ca, "Conc.": f"{m_ca} M", "Mass (g)": f"{mass_ca_sol:.2f}"},
+            {"Ingredient": "PCE Solution", "Source": source_pce, "Conc.": f"{pce_conc}%", "Mass (g)": f"{mass_pce_sol:.2f}"},
             {"Ingredient": "DI Water", "Source": "DI", "Conc.": "-", "Mass (g)": f"{mass_water:.2f}"},
             {"Ingredient": "TOTAL", "Source": "-", "Conc.": "-", "Mass (g)": f"{target_total_mass:.2f}"},
         ]
@@ -123,7 +129,7 @@ with st.form("recipe_form"):
         sequence_json = st.text_area("Procedure Steps (JSON)", value=json.dumps(default_steps, indent=2), height=150)
         
         # Prediction
-        pred = predict_strength(ca_si, m_ca, solids, pce)
+        pred = predict_strength(ca_si, m_ca, solids, pce_dosage)
         if pred:
             st.metric(label="Predicted 28d Strength", value=f"{pred:.1f} MPa")
 
@@ -135,6 +141,7 @@ with st.form("recipe_form"):
         else:
             try:
                 proc_config = {"steps": json.loads(sequence_json)}
+                sources = {"ca": source_ca, "si": source_si, "pce": source_pce}
                 new_recipe = Recipe(
                     name=name,
                     recipe_date=datetime.combine(r_date, datetime.min.time()),
@@ -143,6 +150,7 @@ with st.form("recipe_form"):
                     molarity_na2sio3=m_si,
                     total_solid_content=solids,
                     pce_content_wt=pce_dosage,
+                    material_sources=sources,
                     ca_addition_rate=rate_ca,
                     si_addition_rate=rate_si,
                     ca_stock_batch_id=ca_opts.get(ca_batch_id),
