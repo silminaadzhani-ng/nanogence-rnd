@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Streamlit
+.streamlit/
+!/.streamlit/config.toml
+# We usually DO NOT want to commit secrets.toml
+.streamlit/secrets.toml
+
+# Local Database (SQLite)
+# Exclude this so you don't overwrite production data or leak local test data
+nanogence.db
+nanogence.db-journal
+
+# ML Model (Large file, optional to commit, but for simple deployment we might commit it)
+# model.pkl
+
+# IDEs
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
