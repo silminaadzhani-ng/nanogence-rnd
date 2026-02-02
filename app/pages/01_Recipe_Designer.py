@@ -128,9 +128,14 @@ with st.form("recipe_form"):
         procedure_notes = st.text_area("Procedure Notes", placeholder="e.g. 1. Dissolve PCX...\n2. Start feeding...", height=150)
         
         # Prediction
-        pred = predict_strength(ca_si, m_ca, solids, pce_dosage)
-        if pred:
-            st.metric(label="Predicted 28d Strength", value=f"{pred:.1f} MPa")
+        p1d = predict_strength(ca_si, m_ca, solids, pce_dosage, target='1d')
+        p28d = predict_strength(ca_si, m_ca, solids, pce_dosage, target='28d')
+        
+        c1, c2 = st.columns(2)
+        if p1d is not None:
+            c1.metric(label="Predicted 1d Strength", value=f"{p1d:.1f} MPa")
+        if p28d is not None:
+            c2.metric(label="Predicted 28d Strength", value=f"{p28d:.1f} MPa")
 
     submitted = st.form_submit_button("💾 Save Recipe")
 
