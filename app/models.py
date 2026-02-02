@@ -51,6 +51,7 @@ class Recipe(Base):
     name = Column(String, index=True)
     parent_recipe_id = Column(UUID(as_uuid=True), ForeignKey('recipes.id'), nullable=True)
     version = Column(Integer, default=1)
+    code = Column(String, unique=True, index=True) # e.g. REC-20240101-01
     
     # Synthesis Parameters
     recipe_date = Column(DateTime, default=datetime.utcnow)

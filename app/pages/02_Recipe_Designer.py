@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db, init_db
 from app.models import Recipe, StockSolutionBatch, RawMaterial
 from app.ui_utils import display_logo
+import uuid
 from app.ml_utils import predict_strength
 
 # Ensure database is synced
@@ -18,6 +19,25 @@ display_logo()
 st.markdown("# 📝 Experimental Recipe Designer")
 
 db: Session = next(get_db())
+
+# Function to generate unique recipe code
+def generate_recipe_code():
+    today_str = datetime.now().strftime("%Y%m%d")
+    prefix = f"REC-{today_str}-"
+    count = db.query(Recipe).filter(Recipe.code.like(f"{prefix}%")).count()
+    return f"{prefix}{count + 1:02d}"
+
+# Handle Edit Mode Session State
+if 'edit_recipe_id' not in st.session_state:
+    st.session_state.edit_recipe_id = None
+
+edit_recipe = None
+if st.session_state.edit_recipe_id:
+    # Use UUID to quarry
+    edit_recipe = db.query(Recipe).filter(Recipe.id == st.session_state.edit_recipe_id).first()
+    if not edit_recipe:
+        st.warning("Recipe not found. Exiting edit mode.")
+        st.session_state.edit_recipe_id = None
 
 # --- Sidebar: AI Prediction ---
 with st.sidebar:
@@ -52,20 +72,37 @@ with tab1:
 
     with col1:
         st.subheader("Chemical Composition")
-        r_date = st.date_input("Recipe Date", value=datetime.today())
-        name = st.text_input("Recipe Name", placeholder="e.g. CSH-Seed-Standard-2024")
+        
+        # Determine default values based on Edit Mode or Standard Defaults
+        d_date = edit_recipe.recipe_date.date() if edit_recipe else datetime.today()
+        d_name = edit_recipe.name if edit_recipe else ""
+        d_code = edit_recipe.code if edit_recipe else generate_recipe_code()
+        
+        # Defaults
+        d_casi = edit_recipe.ca_si_ratio if edit_recipe else 1.50
+        d_solids = edit_recipe.total_solid_content if edit_recipe else 5.0
+        d_m_ca = edit_recipe.molarity_ca_no3 if edit_recipe else 1.5
+        d_m_si = edit_recipe.molarity_na2sio3 if edit_recipe else 0.75
+        d_pce_dosage = edit_recipe.pce_content_wt if edit_recipe else 2.5
+        d_pce_conc = 50.0 
+
+        c_code, c_date = st.columns([1, 2])
+        c_code.caption(f"ID: **{d_code}**")
+        r_date = c_date.date_input("Recipe Date", value=d_date)
+        
+        name = st.text_input("Recipe Name", value=d_name, placeholder="e.g. CSH-Seed-Standard-2024")
         
         c1, c2 = st.columns(2)
-        ca_si = c1.number_input("Ca/Si Ratio", min_value=0.0, max_value=2.5, step=0.05, value=1.50)
-        solids = c2.number_input("Target Solid Content (%)", min_value=0.1, max_value=50.0, value=5.0)
+        ca_si = c1.number_input("Ca/Si Ratio", min_value=0.0, max_value=2.5, step=0.05, value=d_casi)
+        solids = c2.number_input("Target Solid Content (%)", min_value=0.1, max_value=50.0, value=d_solids)
         
         c3, c4 = st.columns(2)
-        m_ca = c3.number_input("Ca(NO3)2 Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=1.5)
-        m_si = c4.number_input("Na2SiO3 Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=0.75)
+        m_ca = c3.number_input("Ca(NO3)2 Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=d_m_ca)
+        m_si = c4.number_input("Na2SiO3 Molarity (mol/L)", min_value=0.01, max_value=10.0, step=0.1, value=d_m_si)
         
         c5, c6 = st.columns(2)
-        pce_dosage = c5.number_input("PCE Dosage (%)", min_value=0.0, max_value=100.0, step=0.1, value=2.5)
-        pce_conc = c6.number_input("PCE Solution Conc. (wt.%)", min_value=1.0, max_value=100.0, value=50.0)
+        pce_dosage = c5.number_input("PCE Dosage (%)", min_value=0.0, max_value=100.0, step=0.1, value=d_pce_dosage)
+        pce_conc = c6.number_input("PCE Solution Conc. (wt.%)", min_value=1.0, max_value=100.0, value=d_pce_conc)
 
         st.subheader("🧪 Material & Stock Source")
         ca_batches = db.query(StockSolutionBatch).filter(StockSolutionBatch.chemical_type == "Ca").all()
@@ -76,9 +113,24 @@ with tab1:
         si_opts = {f"{b.code} ({b.molarity}M)": b.id for b in si_batches}
         pce_opts = {f"{m.material_name} (Lot: {m.lot_number})": m.brand for m in pce_materials}
         
-        ca_batch_selection = st.selectbox("Ca Stock Batch", options=["None"] + list(ca_opts.keys()))
-        si_batch_selection = st.selectbox("Si Stock Batch", options=["None"] + list(si_opts.keys()))
-        pce_selection = st.selectbox("PCE Material Source", options=["None"] + list(pce_opts.keys()))
+        # Initial selection indexes for edit mode
+        def_ca_idx = 0
+        def_si_idx = 0
+        def_pce_idx = 0
+        
+        if edit_recipe:
+            if edit_recipe.ca_stock_batch_id:
+                for i, bid in enumerate(ca_opts.values()):
+                    if bid == edit_recipe.ca_stock_batch_id: def_ca_idx = i + 1; break
+            if edit_recipe.si_stock_batch_id:
+                for i, bid in enumerate(si_opts.values()):
+                    if bid == edit_recipe.si_stock_batch_id: def_si_idx = i + 1; break
+            # Pce matching would required exact string match on source dict if we stored keys, but we stored result strings.
+            # Skipping complex reverse lookup for PCE source string to ID for now.
+        
+        ca_batch_selection = st.selectbox("Ca Stock Batch", options=["None"] + list(ca_opts.keys()), index=def_ca_idx)
+        si_batch_selection = st.selectbox("Si Stock Batch", options=["None"] + list(si_opts.keys()), index=def_si_idx)
+        pce_selection = st.selectbox("PCE Material Source", options=["None"] + list(pce_opts.keys()), index=def_pce_idx)
 
         # Fetch Brands automatically
         sel_ca_batch = db.query(StockSolutionBatch).filter(StockSolutionBatch.id == ca_opts.get(ca_batch_selection)).first()
@@ -207,13 +259,21 @@ with tab1:
         st.caption(f"Theoretical n_Si: {n_si_mol*1000:.2f} mmol | n_Ca: {n_ca_mol*1000:.2f} mmol | PCE solid: {mass_pce_sol * pce_conc_factor:.2f} g")
 
     st.divider()
+    st.divider()
     st.subheader("Process Parameters")
-    cp_c1, cp_c2, cp_c3 = st.columns(3)
-    rate_ca = cp_c1.number_input("Ca Addition Rate (mL/min)", value=0.5)
-    rate_si = cp_c2.number_input("Si Addition Rate (mL/min)", value=0.5)
-    target_ph = cp_c3.number_input("Target pH", value=11.5, step=0.1)
     
-    procedure_notes = st.text_area("Procedure Notes", placeholder="e.g. 1. Dissolve PCX...\n2. Start feeding...", height=150)
+    # Defaults from edit_recipe if available
+    d_rate_ca = edit_recipe.ca_addition_rate if edit_recipe else 0.5
+    d_rate_si = edit_recipe.si_addition_rate if edit_recipe else 0.5
+    d_target_ph = edit_recipe.target_ph if edit_recipe else 11.5
+    d_notes = edit_recipe.process_config.get("procedure", "") if edit_recipe and edit_recipe.process_config else ""
+    
+    cp_c1, cp_c2, cp_c3 = st.columns(3)
+    rate_ca = cp_c1.number_input("Ca Addition Rate (mL/min)", value=d_rate_ca)
+    rate_si = cp_c2.number_input("Si Addition Rate (mL/min)", value=d_rate_si)
+    target_ph = cp_c3.number_input("Target pH", value=d_target_ph, step=0.1)
+    
+    procedure_notes = st.text_area("Procedure Notes", value=d_notes, placeholder="e.g. 1. Dissolve PCX...\n2. Start feeding...", height=150)
     
     p1d = predict_strength(ca_si, m_ca, solids, pce_dosage, target='1d')
     p28d = predict_strength(ca_si, m_ca, solids, pce_dosage, target='28d')
@@ -225,33 +285,70 @@ with tab1:
         cp2.metric(label="Predicted 28d Strength", value=f"{p28d:.1f} MPa")
 
     st.divider()
-    if st.button("💾 Save Recipe"):
+    
+    # Button Text changes based on context
+    btn_label = "🔄 Update Recipe" if edit_recipe else "💾 Save New Recipe"
+    col_a, col_b = st.columns([1, 4])
+    
+    if edit_recipe:
+        if col_a.button("❌ Cancel Edit"):
+            st.session_state.edit_recipe_id = None
+            st.rerun()
+
+    if col_b.button(btn_label, type="primary"):
         if not name:
             st.error("Recipe Name is required.")
         else:
             try:
                 proc_config = {"procedure": procedure_notes}
                 sources = {"ca": source_ca, "si": source_si, "pce": source_pce}
-                new_recipe = Recipe(
-                    name=name,
-                    recipe_date=datetime.combine(r_date, datetime.min.time()),
-                    ca_si_ratio=ca_si,
-                    molarity_ca_no3=m_ca,
-                    molarity_na2sio3=m_si,
-                    total_solid_content=solids,
-                    pce_content_wt=pce_dosage,
-                    material_sources=sources,
-                    ca_addition_rate=rate_ca,
-                    si_addition_rate=rate_si,
-                    target_ph=target_ph,
-                    ca_stock_batch_id=ca_opts.get(ca_batch_selection),
-                    si_stock_batch_id=si_opts.get(si_batch_selection),
-                    process_config=proc_config,
-                    created_by="Silmina Adzhani"
-                )
-                db.add(new_recipe)
-                db.commit()
-                st.success(f"Recipe '{name}' saved!")
+                
+                if edit_recipe:
+                    # UPDATE EXISTING
+                    edit_recipe.name = name
+                    edit_recipe.recipe_date = datetime.combine(r_date, datetime.min.time())
+                    edit_recipe.ca_si_ratio = ca_si
+                    edit_recipe.molarity_ca_no3 = m_ca
+                    edit_recipe.molarity_na2sio3 = m_si
+                    edit_recipe.total_solid_content = solids
+                    edit_recipe.pce_content_wt = pce_dosage
+                    edit_recipe.material_sources = sources
+                    edit_recipe.ca_addition_rate = rate_ca
+                    edit_recipe.si_addition_rate = rate_si
+                    edit_recipe.target_ph = target_ph
+                    edit_recipe.ca_stock_batch_id = ca_opts.get(ca_batch_selection)
+                    edit_recipe.si_stock_batch_id = si_opts.get(si_batch_selection)
+                    edit_recipe.process_config = proc_config
+                    # Keep existing code and created_by
+                    
+                    db.commit()
+                    st.success(f"Recipe '{name}' updated successfully!")
+                    st.session_state.edit_recipe_id = None # Exit edit mode
+                    st.rerun()
+                else:
+                    # CREATE NEW
+                    new_recipe = Recipe(
+                        name=name,
+                        code=d_code, # Use the generated code
+                        recipe_date=datetime.combine(r_date, datetime.min.time()),
+                        ca_si_ratio=ca_si,
+                        molarity_ca_no3=m_ca,
+                        molarity_na2sio3=m_si,
+                        total_solid_content=solids,
+                        pce_content_wt=pce_dosage,
+                        material_sources=sources,
+                        ca_addition_rate=rate_ca,
+                        si_addition_rate=rate_si,
+                        target_ph=target_ph,
+                        ca_stock_batch_id=ca_opts.get(ca_batch_selection),
+                        si_stock_batch_id=si_opts.get(si_batch_selection),
+                        process_config=proc_config,
+                        created_by="Silmina Adzhani"
+                    )
+                    db.add(new_recipe)
+                    db.commit()
+                    st.success(f"Recipe '{name}' ({d_code}) saved!")
+                    st.rerun()
             except Exception as e:
                 st.error(f"Error: {str(e)}")
 
@@ -278,6 +375,7 @@ with tab2:
                 ca_batch_code = r.ca_stock_batch.code if r.ca_stock_batch else "N/A"
                 si_batch_code = r.si_stock_batch.code if r.si_stock_batch else "N/A"
                 lib_data.append({
+                    "Code": r.code if r.code else "N/A",
                     "Name": r.name,
                     "Date": r.recipe_date.strftime("%Y-%m-%d") if r.recipe_date else "N/A",
                     "Ca/Si": r.ca_si_ratio,
@@ -295,16 +393,31 @@ with tab2:
                 st.error(f"Error loading recipe '{r.name}': {e}")
         
         if lib_data:
-            st.dataframe(lib_data, use_container_width=True)
+            # Reorder columns to show Code first
+            df_lib = pd.DataFrame(lib_data)
+            cols = ["Code", "Name", "Date"] + [c for c in df_lib.columns if c not in ["Code", "Name", "Date"]]
+            st.dataframe(df_lib[cols], use_container_width=True, hide_index=True)
             
-            with st.expander("🗑️ Delete Recipes", expanded=False):
-                recipe_to_delete = st.selectbox("Select Recipe to Remove", options=[r.name for r in recipes], key="del_recipe")
-                if st.button("Confirm Delete", type="primary"):
-                    target = db.query(Recipe).filter(Recipe.name == recipe_to_delete).first()
-                    if target:
-                        db.delete(target)
-                        db.commit()
-                        st.success(f"Recipe '{recipe_to_delete}' deleted.")
-                        st.rerun()
+            with st.expander("⚙️ Manage Recipes (Edit / Delete)", expanded=False):
+                # Create a comprehensive label for selection
+                recipe_map = {f"{r.code} - {r.name}": r.id for r in recipes}
+                selected_label = st.selectbox("Select Recipe", options=list(recipe_map.keys()), key="manage_recipe_sel")
+                
+                if selected_label:
+                    selected_id = recipe_map[selected_label]
+                    
+                    c_edit, c_del = st.columns(2)
+                    
+                    if c_edit.button("✏️ Edit This Recipe"):
+                        st.session_state.edit_recipe_id = selected_id
+                        st.switch_page("pages/02_Recipe_Designer.py") # Force reload/navigate
+                        
+                    if c_del.button("🗑️ Delete This Recipe", type="primary"):
+                        target = db.query(Recipe).filter(Recipe.id == selected_id).first()
+                        if target:
+                            db.delete(target)
+                            db.commit()
+                            st.success(f"Recipe '{selected_label}' deleted.")
+                            st.rerun()
     else:
         st.info("No recipes found in the library.")
