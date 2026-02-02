@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 from datetime import datetime
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.database import get_db, init_db
 from app.models import Recipe, StockSolutionBatch
@@ -29,7 +30,7 @@ with tab_dash:
     col1, col2, col3 = st.columns(3)
     
     total_recipes = db.query(Recipe).count()
-    avg_solids = db.query(st.func.avg(Recipe.total_solid_content)).scalar() or 0
+    avg_solids = db.query(func.avg(Recipe.total_solid_content)).scalar() or 0
     
     col1.metric("Total Recipes", total_recipes)
     col2.metric("Avg solids (%)", f"{avg_solids:.2f}")

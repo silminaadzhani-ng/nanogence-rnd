@@ -1,6 +1,7 @@
 import streamlit as st
 import datetime
 import pandas as pd
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.database import get_db, init_db
 from app.models import SynthesisBatch, PerformanceTest
@@ -23,8 +24,8 @@ with tab_dash:
     col1, col2, col3 = st.columns(3)
     
     total_tests = db.query(PerformanceTest).count()
-    avg_28d = db.query(st.func.avg(PerformanceTest.compressive_strength_28d)).scalar() or 0
-    avg_flow = db.query(st.func.avg(PerformanceTest.flow)).scalar() or 0
+    avg_28d = db.query(func.avg(PerformanceTest.compressive_strength_28d)).scalar() or 0
+    avg_flow = db.query(func.avg(PerformanceTest.flow)).scalar() or 0
     
     col1.metric("Total Tests", total_tests)
     col2.metric("Avg 28d Strength (MPa)", f"{avg_28d:.1f}")

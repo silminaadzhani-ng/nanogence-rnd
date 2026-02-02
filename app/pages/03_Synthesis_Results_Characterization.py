@@ -2,6 +2,7 @@ import streamlit as st
 import datetime
 import pandas as pd
 import uuid
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.database import get_db, init_db
 from app.models import Recipe, SynthesisBatch, QCMeasurement
@@ -26,7 +27,7 @@ with tab_dash:
     
     total_batches = db.query(SynthesisBatch).count()
     total_qc = db.query(QCMeasurement).count()
-    avg_ph = db.query(st.func.avg(QCMeasurement.ph)).scalar() or 0
+    avg_ph = db.query(func.avg(QCMeasurement.ph)).scalar() or 0
     
     col1.metric("Total Batches", total_batches)
     col2.metric("QC Entries", total_qc)
