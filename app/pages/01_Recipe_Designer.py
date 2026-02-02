@@ -175,11 +175,22 @@ recipes = db.query(Recipe).order_by(Recipe.created_at.desc()).all()
 if recipes:
     data = []
     for r in recipes:
+        # Resolve batch codes for display
+        ca_batch = r.ca_stock_batch.code if r.ca_stock_batch else "N/A"
+        si_batch = r.si_stock_batch.code if r.si_stock_batch else "N/A"
+        
         data.append({
             "Name": r.name,
             "Date": r.recipe_date.strftime("%Y-%m-%d") if r.recipe_date else "N/A",
             "Ca/Si": r.ca_si_ratio,
-            "Ca Add. Rate": r.ca_addition_rate,
-            "Si Add. Rate": r.si_addition_rate
+            "Solids %": r.total_solid_content,
+            "Ca M": r.molarity_ca_no3,
+            "Si M": r.molarity_na2sio3,
+            "PCE %": r.pce_content_wt,
+            "Target pH": r.target_ph,
+            "Ca Batch": ca_batch,
+            "Si Batch": si_batch,
+            "Ca Rate": r.ca_addition_rate,
+            "Si Rate": r.si_addition_rate,
         })
     st.dataframe(data, use_container_width=True)
