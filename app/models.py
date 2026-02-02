@@ -119,6 +119,33 @@ class QCMeasurement(Base):
     # }
     psd_data = Column(JSON, default=dict)
     
+    # Detailed PSD Columns (Before Sonication)
+    psd_before_v_d10 = Column(Float, nullable=True)
+    psd_before_v_d50 = Column(Float, nullable=True)
+    psd_before_v_d90 = Column(Float, nullable=True)
+    psd_before_v_mean = Column(Float, nullable=True)
+    psd_before_n_d10 = Column(Float, nullable=True)
+    psd_before_n_d50 = Column(Float, nullable=True)
+    psd_before_n_d90 = Column(Float, nullable=True)
+    psd_before_n_mean = Column(Float, nullable=True)
+    psd_before_ssa = Column(Float, nullable=True)
+
+    # Detailed PSD Columns (After Sonication)
+    psd_after_v_d10 = Column(Float, nullable=True)
+    psd_after_v_d50 = Column(Float, nullable=True)
+    psd_after_v_d90 = Column(Float, nullable=True)
+    psd_after_v_mean = Column(Float, nullable=True)
+    psd_after_n_d10 = Column(Float, nullable=True)
+    psd_after_n_d50 = Column(Float, nullable=True)
+    psd_after_n_d90 = Column(Float, nullable=True)
+    psd_after_n_mean = Column(Float, nullable=True)
+    psd_after_ssa = Column(Float, nullable=True)
+
+    # Agglomeration Factors
+    agglom_vol = Column(Float, nullable=True)
+    agglom_num = Column(Float, nullable=True)
+    agglom_ssa = Column(Float, nullable=True)
+
     notes = Column(String, nullable=True)
     custom_metrics = Column(JSON, default=dict)
 
