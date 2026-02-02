@@ -79,7 +79,7 @@ with st.form("recipe_form"):
                     total_solid_content=solids,
                     pce_content_wt=pce,
                     process_config=proc_config,
-                    created_by="Silmina Adzhani" 
+                    created_by="Researcher" 
                 )
                 db.add(new_recipe)
                 db.commit()
