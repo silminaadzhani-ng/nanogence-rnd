@@ -7,9 +7,9 @@ from app.models import StockSolutionBatch
 # Ensure database is synced
 init_db()
 
-st.set_page_config(page_title="Stock Solutions", page_icon="🧪", layout="wide")
+st.set_page_config(page_title="Raw Materials & Stock Solutions", page_icon="🧪", layout="wide")
 
-st.markdown("# 🧪 Stock Solution Management")
+st.markdown("# 🧪 Raw materials and stock solution management")
 
 db: Session = next(get_db())
 
