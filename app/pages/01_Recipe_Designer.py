@@ -105,9 +105,13 @@ with st.form("recipe_form"):
         mass_pce_sol = pce_mass_g
         mass_water = target_total_mass - mass_si_sol - mass_ca_sol - mass_pce_sol
         
+        # Determine display sources (Batch code vs Brand)
+        display_source_ca = ca_batch_id if ca_batch_id != "None" else source_ca
+        display_source_si = si_batch_id if si_batch_id != "None" else source_si
+
         calc_data = [
-            {"Ingredient": "Na2SiO3 Solution", "Source": source_si, "Conc.": f"{m_si} M", "Mass (g)": f"{mass_si_sol:.2f}"},
-            {"Ingredient": "Ca(NO3)2 Solution", "Source": source_ca, "Conc.": f"{m_ca} M", "Mass (g)": f"{mass_ca_sol:.2f}"},
+            {"Ingredient": "Na2SiO3 Solution", "Source": display_source_si, "Conc.": f"{m_si} M", "Mass (g)": f"{mass_si_sol:.2f}"},
+            {"Ingredient": "Ca(NO3)2 Solution", "Source": display_source_ca, "Conc.": f"{m_ca} M", "Mass (g)": f"{mass_ca_sol:.2f}"},
             {"Ingredient": "PCE Solution", "Source": source_pce, "Conc.": f"{pce_conc}%", "Mass (g)": f"{mass_pce_sol:.2f}"},
             {"Ingredient": "DI Water", "Source": "DI", "Conc.": "-", "Mass (g)": f"{mass_water:.2f}"},
             {"Ingredient": "TOTAL", "Source": "-", "Conc.": "-", "Mass (g)": f"{target_total_mass:.2f}"},
