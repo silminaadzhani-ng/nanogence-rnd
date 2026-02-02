@@ -5,6 +5,23 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from .database import Base
 
+class StockSolutionBatch(Base):
+    __tablename__ = "stock_solution_batches"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    code = Column(String, unique=True, index=True) # e.g. CA-20240101-01
+    chemical_type = Column(String) # 'Ca', 'Si', 'NaOH'
+    molarity = Column(Float)
+    target_volume_ml = Column(Float)
+    actual_mass_g = Column(Float)
+    operator = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    notes = Column(String)
+
+    # Relationships
+    recipes_ca = relationship("Recipe", foreign_keys="Recipe.ca_stock_batch_id", back_populates="ca_stock_batch")
+    recipes_si = relationship("Recipe", foreign_keys="Recipe.si_stock_batch_id", back_populates="si_stock_batch")
+
 class Recipe(Base):
     __tablename__ = "recipes"
 
@@ -14,10 +31,20 @@ class Recipe(Base):
     version = Column(Integer, default=1)
     
     # Synthesis Parameters
+    recipe_date = Column(DateTime, default=datetime.utcnow)
     ca_si_ratio = Column(Float)
     molarity_ca_no3 = Column(Float)
+    molarity_na2sio3 = Column(Float)
     total_solid_content = Column(Float)
     pce_content_wt = Column(Float)
+    
+    # Stock solution link
+    ca_stock_batch_id = Column(UUID(as_uuid=True), ForeignKey('stock_solution_batches.id'), nullable=True)
+    si_stock_batch_id = Column(UUID(as_uuid=True), ForeignKey('stock_solution_batches.id'), nullable=True)
+
+    # Process Config
+    ca_addition_rate = Column(Float) # mL/min
+    si_addition_rate = Column(Float) # mL/min
     
     # Process Config (stored as JSON for flexibility in step definitions)
     # Example: {"feeding_sequence": [{"step": "A", "duration": 10}], "rate": 5.0}
@@ -27,6 +54,8 @@ class Recipe(Base):
     created_by = Column(String) # Simple string for now, could be User FK later
     
     # Relationships
+    ca_stock_batch = relationship("StockSolutionBatch", foreign_keys=[ca_stock_batch_id], back_populates="recipes_ca")
+    si_stock_batch = relationship("StockSolutionBatch", foreign_keys=[si_stock_batch_id], back_populates="recipes_si")
     batches = relationship("SynthesisBatch", back_populates="recipe")
     children = relationship("Recipe", remote_side=[id], backref="parent")
 
