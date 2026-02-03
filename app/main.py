@@ -22,75 +22,11 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# --- Authentication Gatekeeper ---
-from app.auth import authenticate_user, get_password_hash
-from app.models import User
-
+# --- Authentication Gatekeeper (Disabled per user request) ---
 if "user_email" not in st.session_state:
-    st.session_state.user_email = None
-
-if not st.session_state.user_email:
-    # Minimal Login Layout
-    lc1, lc2, lc3 = st.columns([1, 2, 1])
-    with lc2:
-        st.title("🔐 Nanogence R&D")
-        st.subheader("Please Login")
-        
-        tab_login, tab_reg = st.tabs(["Login", "Register"])
-        
-        with tab_login:
-            with st.form("login_form"):
-                email = st.text_input("Email")
-                pwd = st.text_input("Password", type="password")
-                if st.form_submit_button("Sign In", type="primary"):
-                    db = SessionLocal()
-                    user = authenticate_user(db, email, pwd)
-                    db.close()
-                    if user:
-                        st.session_state.user_email = user.email
-                        st.session_state.user_name = user.full_name
-                        st.session_state.user_role = user.role
-                        st.success(f"Welcome, {user.full_name}!")
-                        st.rerun()
-                    else:
-                        st.error("❌ Invalid email or password")
-
-        with tab_reg:
-            st.info("New researcher? Create an account below.")
-            with st.form("reg_form"):
-                new_email = st.text_input("Email (required)")
-                new_name = st.text_input("Full Name")
-                new_pwd = st.text_input("Password", type="password")
-                confirm_pwd = st.text_input("Confirm Password", type="password")
-                
-                if st.form_submit_button("Create Account"):
-                    if new_pwd != confirm_pwd:
-                        st.error("Passwords do not match.")
-                    elif not new_email.endswith("@nanogence.com"):
-                        st.error("⚠️ Registration restricted to Nanogence employees (@nanogence.com).")
-                    elif not new_email or not new_pwd:
-                        st.error("Email and Password are required.")
-                    else:
-                        db = SessionLocal()
-                        if db.query(User).filter(User.email == new_email).first():
-                            st.error("⚠️ Email already registered.")
-                        else:
-                            try:
-                                hashed = get_password_hash(new_pwd)
-                                u = User(
-                                    email=new_email, 
-                                    full_name=new_name, 
-                                    hashed_password=hashed,
-                                    role="Researcher"
-                                )
-                                db.add(u)
-                                db.commit()
-                                st.success("✅ Account created! Please switch to Login tab.")
-                            except Exception as e:
-                                st.error(f"Registration failed: {e}")
-                        db.close()
-    
-    st.stop() # Stop rendering the rest of the app
+    st.session_state.user_email = "guest@nanogence.com"
+    st.session_state.user_name = "Guest User"
+    st.session_state.user_role = "Researcher"
 
 display_logo()
 

@@ -22,9 +22,6 @@ def authenticate_user(db: Session, email, password):
 def check_authentication():
     """
     To be called at the top of every page.
-    If not authenticated, stops execution and shows warning.
+    Bypassed per user request (Open Access).
     """
-    if "user_email" not in st.session_state or not st.session_state.user_email:
-        st.warning("⚠️ Access Denied. Please Login on the Dashboard.")
-        st.stop()
     return True
