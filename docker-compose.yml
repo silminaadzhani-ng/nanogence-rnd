@@ -4,6 +4,7 @@ services:
   db:
     image: postgres:15
     container_name: nanogence_db
+    restart: always
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password
@@ -12,6 +13,19 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+
+  app:
+    build: .
+    container_name: nanogence_app
+    restart: always
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgresql://admin:password@db:5432/nanogence_rd
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./app:/app/app
 
 volumes:
   pgdata:

@@ -16,23 +16,25 @@ Best for: Rapid sharing, small teams, testing.
     *   Click **Deploy**.
 3.  **Result**: You get a public URL (e.g., `https://nanogence-platform.streamlit.app`) to share.
 
-## Option 2: Docker / Internal Server (Secure & Private)
-Best for: Corporate intranet, keeping data on-premise.
+## ⚠️ Crucial: Data Persistence Warning
+*   **Default Mode**: The app uses **SQLite** (`nanogence.db`).
+*   **On Streamlit Cloud**: The filesystem is **ephemeral**. Every time the app reloads or sleeps, the `.db` file is deleted and you lose your data.
+*   **The Solution**: Use a shared persistent database (PostgreSQL).
 
-1.  **Build the Image**:
-    ```bash
-    docker build -t nanogence-platform .
-    ```
-2.  **Run the Container**:
-    ```bash
-    docker run -p 80:8501 nanogence-platform
-    ```
-3.  **Access**:
-    *   The site will be available at `http://<your-server-ip>:80`.
+## Option 2: Docker Compose (Full Stack - Recommended)
+This is the best way to run the app with a **persistent** database on a server.
 
-## Important Note on Database
-*   Currently, the app uses **SQLite** (`nanogence.db`), which is a file stored inside the app.
-*   **For Cloud Deployment**: SQLite will reset every time the app restarts. You should switch back to **PostgreSQL** (as originally planned) for a persistent "Production" website.
-*   **To switch to Postgres**:
-    1.  Set up a hosted database (e.g., AWS RDS, Supabase, or Render).
-    2.  Set the `DATABASE_URL` environment variable in your deployment settings to the Postgres connection string.
+1.  **Run with one command**:
+    ```bash
+    docker-compose up -d
+    ```
+2.  **Why this works**: It starts both the App and a Postgres Database. The data is saved in a Docker Volume (`pgdata`) which survives restarts.
+
+## How to use an External Database (Cloud)
+If you are using Streamlit Cloud and want to keep your data:
+1.  **Create a Postgres DB** (e.g., on [Neon](https://neon.tech/) or [Supabase](https://supabase.com/)).
+2.  **Add Secret**: In the Streamlit Cloud dashboard, go to **Settings -> Secrets** and add:
+    ```toml
+    DATABASE_URL = "postgresql://USER:PASSWORD@HOST:PORT/DBNAME"
+    ```
+3.  **Restart App**: The platform will now save all data to the cloud database instead of a local file.
