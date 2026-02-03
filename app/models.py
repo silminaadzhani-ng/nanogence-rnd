@@ -188,3 +188,13 @@ class PerformanceTest(Base):
     raw_data = Column(JSON, default=dict)
 
     batch = relationship("SynthesisBatch", back_populates="performance_tests")
+
+class SystemLog(Base):
+    __tablename__ = "system_logs"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    event_type = Column(String) # e.g. "BACKUP_DOWNLOAD", "DB_RESET"
+    details = Column(String) # e.g. "User downloaded nanogence_backup_2024..."
+    user = Column(String, nullable=True)
