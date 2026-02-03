@@ -121,7 +121,7 @@ with tab2:
         table_data = []
         for r in results:
             row = {
-                "Batch": r.batch.lab_notebook_ref if r.batch else "?",
+                "Measurement ID": r.batch.lab_notebook_ref if r.batch else "?",
                 "12h": r.compressive_strength_12h,
                 "1d": r.compressive_strength_1d,
                 "28d": r.compressive_strength_28d,

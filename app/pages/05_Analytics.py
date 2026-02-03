@@ -21,7 +21,7 @@ SELECT
     r.ca_si_ratio,
     r.molarity_ca_no3,
     r.pce_content_wt,
-    b.lab_notebook_ref,
+    b.lab_notebook_ref as measurement_id,
     b.execution_date,
     p.compressive_strength_1d,
     p.compressive_strength_7d,
@@ -59,7 +59,7 @@ try:
             c1, c2, c3 = st.columns(3)
             x_axis = c1.selectbox("X Axis", options=["ca_si_ratio", "pce_content_wt", "molarity_ca_no3", "flow"])
             y_axis = c2.selectbox("Y Axis", options=["compressive_strength_1d", "compressive_strength_7d", "compressive_strength_28d"])
-            color_by = c3.selectbox("Color By", options=["recipe_name", "lab_notebook_ref"])
+            color_by = c3.selectbox("Color By", options=["recipe_name", "measurement_id"])
             
             fig = px.scatter(
                 df, 
@@ -67,7 +67,7 @@ try:
                 y=y_axis, 
                 color=color_by, 
                 size="compressive_strength_28d" if "compressive_strength_28d" in df.columns else None, 
-                hover_data=["lab_notebook_ref"],
+                hover_data=["measurement_id"],
                 title=f"{y_axis} vs {x_axis}"
             )
             st.plotly_chart(fig, use_container_width=True)

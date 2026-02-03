@@ -69,13 +69,13 @@ with tab1:
                 "V-d50 (µm, Aft)": qc.psd_after_v_d50,
                 "Final Form": qc.custom_metrics.get("final_form", "N/A") if qc.custom_metrics else "N/A",
                 "Measured At": qc.measured_at.strftime("%Y-%m-%d %H:%M") if qc.measured_at else "N/A",
-                "Ref": qc.batch.lab_notebook_ref if qc.batch else "N/A"
+                "Measurement ID": qc.batch.lab_notebook_ref if qc.batch else "N/A"
             })
         
         df_lib = pd.DataFrame(library_data)
         
         # Table View
-        st.dataframe(df_lib[["Trial #", "pH", "Solids %", "V-d50 (µm, Bef)", "Final Form", "Measured At", "Ref"]], use_container_width=True)
+        st.dataframe(df_lib[["Trial #", "pH", "Solids %", "V-d50 (µm, Bef)", "Final Form", "Measured At", "Measurement ID"]], use_container_width=True)
         
         # Visualization Section
         st.divider()
@@ -165,7 +165,7 @@ with tab2:
         
         with st.form("characterization_form"):
             c_meta1, c_meta2 = st.columns(2)
-            batch_ref = c_meta1.text_input("Notebook / Lab Reference", value=f"NB-{sel_recipe_code}")
+            batch_ref = c_meta1.text_input("Measurement ID", value=f"NB-{sel_recipe_code}")
             operator = c_meta2.text_input("Operator Name", value="Silmina Adzhani")
             
             c_time1, c_time2 = st.columns(2)
