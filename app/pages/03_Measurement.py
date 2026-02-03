@@ -11,18 +11,18 @@ from app.ui_utils import display_logo
 # Ensure database is synced
 init_db()
 
-st.set_page_config(page_title="Results", page_icon="🧪", layout="wide")
+st.set_page_config(page_title="Measurement", page_icon="🧪", layout="wide")
 display_logo()
 
-st.markdown("# 🧪 Synthesis Results & Characterization")
+st.markdown("# 🧪 Measurement")
 
 db: Session = next(get_db())
 
-tab_dash, tab1, tab2 = st.tabs(["📊 Dashboard", "📊 Results Library", "📝 Record Characterization"])
+tab_dash, tab1, tab2 = st.tabs(["📊 Dashboard", "📊 Measurement Library", "📝 Record Measurement"])
 
 # --- Dashboard Tab ---
 with tab_dash:
-    st.subheader("Synthesis Analytics")
+    st.subheader("Measurement Analytics")
     col1, col2, col3 = st.columns(3)
     
     total_batches = db.query(SynthesisBatch).count()
@@ -41,7 +41,7 @@ with tab_dash:
 
 # --- Results Library Tab ---
 with tab1:
-    st.subheader("Synthesis Characterization Table")
+    st.subheader("Measurement Library")
     
     # Query all results linking Recipe -> Batch -> QC
     query = db.query(
@@ -163,14 +163,15 @@ with tab2:
         st.divider()
         st.subheader("2. Measurement entry")
         
+        c_time1, c_time2 = st.columns(2)
+        measurement_date = c_time1.date_input("Measurement Date", value=datetime.date.today())
+        age_h = c_time2.number_input("Ageing Time (hours)", min_value=0.0, step=0.5, value=0.0, help="Unique ageing point for this measurement.")
+        
         with st.form("characterization_form"):
             c_meta1, c_meta2 = st.columns(2)
-            batch_ref = c_meta1.text_input("Measurement ID", value=f"NB-{sel_recipe_code}")
+            # Default ID now includes age to ensure uniqueness per requirement
+            batch_ref = c_meta1.text_input("Measurement ID", value=f"NB-{sel_recipe_code}-{age_h}h")
             operator = c_meta2.text_input("Operator Name", value="Silmina Adzhani")
-            
-            c_time1, c_time2 = st.columns(2)
-            measurement_date = c_time1.date_input("Measurement Date", value=datetime.date.today())
-            age_h = c_time2.number_input("Ageing Time (hours)", min_value=0.0, step=1.0, value=0.0, help="Manually enter the age of the sample in hours (e.g. 1, 2, 24)")
             
             measurement_ts = datetime.datetime.combine(measurement_date, datetime.datetime.now().time())
 
@@ -187,7 +188,7 @@ with tab2:
             psd_init_df = pd.DataFrame(0.0, index=psd_rows, columns=psd_cols)
             edited_psd = st.data_editor(psd_init_df, use_container_width=True, key="psd_editor_age")
 
-            if st.form_submit_button("✅ Save Characterization"):
+            if st.form_submit_button("✅ Save Measurement"):
                 if not batch_ref:
                     st.error("Reference is required.")
                 else:
