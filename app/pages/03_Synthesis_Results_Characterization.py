@@ -60,16 +60,59 @@ with tab1:
                 "Trial #": trial_name,
                 "pH": qc.ph,
                 "Solids %": qc.solid_content_measured,
-                "Age (h)": f"{qc.ageing_time:.1f}" if qc.ageing_time else "0.0",
+                "Settling (mm)": qc.settling_height,
+                "Age (h)": qc.ageing_time if qc.ageing_time else 0.0,
+                "V-d10 (Bef)": qc.psd_before_v_d10,
                 "V-d50 (Bef)": qc.psd_before_v_d50,
+                "V-d90 (Bef)": qc.psd_before_v_d90,
+                "V-Mean (Bef)": qc.psd_before_v_mean,
                 "V-d50 (Aft)": qc.psd_after_v_d50,
-                "Measured At": qc.measured_at.strftime("%Y-%m-%d %H:%M") if qc.measured_at else "N/A",
                 "Final Form": qc.custom_metrics.get("final_form", "N/A") if qc.custom_metrics else "N/A",
+                "Measured At": qc.measured_at.strftime("%Y-%m-%d %H:%M") if qc.measured_at else "N/A",
                 "Ref": qc.batch.lab_notebook_ref if qc.batch else "N/A"
             })
         
         df_lib = pd.DataFrame(library_data)
-        st.dataframe(df_lib, use_container_width=True)
+        
+        # Table View
+        st.dataframe(df_lib[["Trial #", "pH", "Solids %", "V-d50 (Bef)", "Final Form", "Measured At", "Ref"]], use_container_width=True)
+        
+        # Visualization Section
+        st.divider()
+        st.subheader("📊 Results Comparison Chart")
+        
+        viz_col1, viz_col2 = st.columns([3, 1])
+        
+        with viz_col1:
+            trials_to_compare = st.multiselect(
+                "Select Trials to Compare",
+                options=df_lib["Trial #"].unique(),
+                default=list(df_lib["Trial #"].unique()[:5]),
+                key="viz_trials"
+            )
+            
+        with viz_col2:
+            metric_options = ["pH", "Solids %", "Settling (mm)", "V-d10 (Bef)", "V-d50 (Bef)", "V-d90 (Bef)", "V-Mean (Bef)", "V-d50 (Aft)"]
+            selected_metric = st.selectbox("Select Metric to Compare", options=metric_options, key="viz_metric")
+            
+        if trials_to_compare:
+            df_filtered = df_lib[df_lib["Trial #"].isin(trials_to_compare)]
+            
+            # Use Plotly for a more premium look if possible, or standard bar_chart
+            import plotly.express as px
+            fig = px.bar(
+                df_filtered, 
+                x="Trial #", 
+                y=selected_metric,
+                color="Trial #",
+                title=f"Comparison: {selected_metric}",
+                text_auto='.2f',
+                template="plotly_white"
+            )
+            fig.update_layout(showlegend=False)
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("Please select at least one trial to compare.")
     else:
         st.info("No experimental results recorded yet.")
 
