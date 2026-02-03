@@ -4,8 +4,12 @@ import pandas as pd
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.database import get_db, init_db
-from app.models import SynthesisBatch, PerformanceTest
+from app.models import SynthesisBatch, PerformanceTest, Recipe
 from app.ui_utils import display_logo
+from app.auth import check_authentication
+
+# Ensure authentication
+check_authentication()
 
 # Ensure database is synced
 init_db()
@@ -17,7 +21,7 @@ st.markdown("# 📈 Performance Testing (Mortar)")
 
 db: Session = next(get_db())
 
-tab_dash, tab1, tab2 = st.tabs(["📊 Dashboard", "🧪 Log Test Results", "📚 Recent Results"])
+tab_dash, tab_recipes, tab_log = st.tabs(["📊 Dashboard", "📝 Recipes", "➕ Log Test Results"])
 
 with tab_dash:
     st.subheader("Performance Overview")
@@ -32,15 +36,73 @@ with tab_dash:
     col3.metric("Avg Flow (mm)", f"{avg_flow:.1f}")
 
     if total_tests > 0:
-        perf_data = db.query(PerformanceTest.compressive_strength_1d, PerformanceTest.compressive_strength_28d).all()
-        df_perf = pd.DataFrame(perf_data, columns=["1d Strength", "28d Strength"])
-        st.subheader("Strength Development (1d vs 28d)")
-        st.line_chart(df_perf)
+        # Get recent 10 tests for the chart
+        recent_tests = db.query(PerformanceTest).order_by(PerformanceTest.cast_date.asc()).limit(10).all()
+        if recent_tests:
+            chart_data = []
+            for t in recent_tests:
+                label = t.batch.lab_notebook_ref if t.batch else "Unknown"
+                chart_data.append({
+                    "Batch": label,
+                    "1d": t.compressive_strength_1d or 0,
+                    "28d": t.compressive_strength_28d or 0
+                })
+            df_chart = pd.DataFrame(chart_data).set_index("Batch")
+            st.subheader("Recent Strength Progress")
+            st.line_chart(df_chart)
 
-with tab1:
+with tab_recipes:
+    st.subheader("📚 Performance Library (by Recipe)")
+    search_recipe = st.text_input("🔍 Search Recipe Name/Code", placeholder="e.g. NG-2024...")
+    
+    query = db.query(Recipe).order_by(Recipe.code.desc())
+    if search_recipe:
+        query = query.filter((Recipe.name.ilike(f"%{search_recipe}%")) | (Recipe.code.ilike(f"%{search_recipe}%")))
+    
+    recipes = query.all()
+    
+    if not recipes:
+        st.info("No recipes found matches the search.")
+    else:
+        for r in recipes:
+            # Stats for this recipe
+            recipe_tests = db.query(PerformanceTest).join(SynthesisBatch).filter(SynthesisBatch.recipe_id == r.id).all()
+            test_count = len(recipe_tests)
+            recipe_avg_28d = sum([t.compressive_strength_28d for t in recipe_tests if t.compressive_strength_28d]) / test_count if test_count > 0 else 0
+            
+            label = f"{r.code} - {r.name} ({test_count} Tests, Avg 28d: {recipe_avg_28d:.1f} MPa)"
+            with st.expander(label):
+                c_head1, c_head2 = st.columns([2, 1])
+                c_head1.markdown(f"**Recipe Goals:** Ca/Si: {r.ca_si_ratio}, Solids: {r.total_solid_content}%, PCE: {r.pce_content_wt}%")
+                
+                batches = db.query(SynthesisBatch).filter(SynthesisBatch.recipe_id == r.id).order_by(SynthesisBatch.execution_date.desc()).all()
+                if not batches:
+                    st.caption("No synthesis batches recorded.")
+                else:
+                    for b in batches:
+                        st.markdown(f"---")
+                        b_col1, b_col2 = st.columns([3, 1])
+                        b_col1.markdown(f"**Batch: {b.lab_notebook_ref}** ({b.execution_date.strftime('%Y-%m-%d')})")
+                        b_col2.caption(f"Status: {b.status}")
+                        
+                        tests = db.query(PerformanceTest).filter(PerformanceTest.batch_id == b.id).all()
+                        if not tests:
+                            st.caption("No performance tests logged.")
+                        else:
+                            for t in tests:
+                                m1, m2, m3, m4, m5, m6 = st.columns(6)
+                                m1.metric("12h", f"{t.compressive_strength_12h or 0:.1f}")
+                                m2.metric("1d", f"{t.compressive_strength_1d or 0:.1f}")
+                                m3.metric("2d", f"{t.compressive_strength_2d or 0:.1f}")
+                                m4.metric("7d", f"{t.compressive_strength_7d or 0:.1f}")
+                                m5.metric("28d", f"{t.compressive_strength_28d or 0:.1f}")
+                                m6.metric("Flow", f"{t.flow or 0:.0f}")
+
+with tab_log:
+    st.subheader("➕ Log New Performance Results")
     # Select Batch
     batches = db.query(SynthesisBatch).order_by(SynthesisBatch.execution_date.desc()).limit(50).all()
-    batch_select = st.selectbox("Select Synthesis Batch", options=batches, format_func=lambda x: f"{x.lab_notebook_ref} - {x.execution_date.strftime('%Y-%m-%d')}")
+    batch_select = st.selectbox("Select Synthesis Batch to link results", options=batches, format_func=lambda x: f"{x.lab_notebook_ref} ({x.recipe.code if x.recipe else 'N/A'})")
 
     if batch_select:
         st.divider()
@@ -112,21 +174,3 @@ with tab1:
                 db.add(result)
                 db.commit()
                 st.success("Test results saved successfully.")
-
-with tab2:
-    st.subheader("Recent Results")
-    results = db.query(PerformanceTest).order_by(PerformanceTest.cast_date.desc()).limit(20).all()
-    if results:
-        # Flatten data for table
-        table_data = []
-        for r in results:
-            row = {
-                "Batch": r.batch.lab_notebook_ref if r.batch else "?",
-                "12h": r.compressive_strength_12h,
-                "1d": r.compressive_strength_1d,
-                "28d": r.compressive_strength_28d,
-                "Flow": r.flow,
-                "Mix": r.mix_design.get("cement_type", "") if r.mix_design else ""
-            }
-            table_data.append(row)
-        st.dataframe(table_data, use_container_width=True)
