@@ -9,4 +9,3 @@ python-dotenv
 numpy
 openpyxl
 pyngrok
-passlib[bcrypt]

@@ -22,12 +22,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# --- Authentication Gatekeeper (Disabled per user request) ---
-if "user_email" not in st.session_state:
-    st.session_state.user_email = "guest@nanogence.com"
-    st.session_state.user_name = "Guest User"
-    st.session_state.user_role = "Researcher"
-
 display_logo()
 
 st.title("🧪 Nanogence R&D Platform")
@@ -50,55 +44,8 @@ with tab_dash:
     - **📈 Analytics**: Unified data view.
     """)
 
-    st.divider()
-    st.subheader("💾 Database Maintenance")
-    st.info("Download a copy of the database for your daily backup to Google Drive.")
-    
-    db_file_path = "nanogence.db"
-    
-    def log_backup():
-        db = SessionLocal()
-        try:
-            log = SystemLog(
-                event_type="BACKUP_DOWNLOAD",
-                details=f"Backup downloaded manually.",
-                user="User"
-            )
-            db.add(log)
-            db.commit()
-        except Exception as e:
-            print(f"Log Error: {e}")
-        finally:
-            db.close()
-
-    if os.path.exists(db_file_path):
-        with open(db_file_path, "rb") as f:
-            db_binary = f.read()
-        
-        timestamp = datetime.date.today().strftime("%Y%m%d")
-        st.download_button(
-            label="📥 Download Database Backup",
-            data=db_binary,
-            file_name=f"nanogence_backup_{timestamp}.db",
-            mime="application/x-sqlite3",
-            on_click=log_backup,
-            help="Download the full experimental database as a single file."
-        )
-        
-        # Show recent backups
-        st.markdown("#### recent database download")
-        db = SessionLocal()
-        logs = db.query(SystemLog).filter(SystemLog.event_type == "BACKUP_DOWNLOAD").order_by(SystemLog.timestamp.desc()).limit(5).all()
-        db.close()
-        
-        if logs:
-            for l in logs:
-                st.caption(f"✅ {l.timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
-        else:
-            st.caption("No recent backups logged.")
-            
-    else:
-        st.error("Database file not found. Ensure the app has been initialized.")
+    st.markdown("---")
+    st.info("Use the sidebar on the left to navigate between modules.")
 
 with tab_guide:
     st.markdown("""

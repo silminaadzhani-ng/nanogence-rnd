@@ -1,27 +1,10 @@
 import datetime
 from sqlalchemy.orm import Session
 from app.database import SessionLocal, engine
-from app.models import Recipe, SynthesisBatch, QCMeasurement, PerformanceTest, StockSolutionBatch, User
-from app.auth import get_password_hash
+from app.models import Recipe, SynthesisBatch, QCMeasurement, PerformanceTest, StockSolutionBatch
 
 def seed():
     db = SessionLocal()
-    
-    # Check if admin exists
-    admin_user = db.query(User).filter(User.email == "admin@nanogence.com").first()
-    if not admin_user:
-        print("Creating Admin User...")
-        pwd = input("Enter password for admin@nanogence.com: ")
-        hashed = get_password_hash(pwd)
-        admin = User(
-            email="admin@nanogence.com",
-            hashed_password=hashed,
-            full_name="Admin User",
-            role="Admin"
-        )
-        db.add(admin)
-        db.commit()
-        print("Admin user created.")
     
     # 0. Create Stock Solution Batches
     ca_stock = StockSolutionBatch(

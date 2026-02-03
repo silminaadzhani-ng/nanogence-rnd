@@ -8,16 +8,8 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./nanogence.db")
 
-# Fix for Heroku/Render/Neon sometimes providing 'postgres://' instead of 'postgresql://'
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
-connect_args = {}
-if DATABASE_URL.startswith("sqlite"):
-    connect_args = {"check_same_thread": False}
-
 engine = create_engine(
-    DATABASE_URL, connect_args=connect_args
+    DATABASE_URL, connect_args={"check_same_thread": False}
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -75,8 +67,3 @@ def init_db():
         ]
         for col, dtype in new_cols:
             add_column_if_missing("qc_measurements", col, dtype)
-
-    if "performance_tests" in inspector.get_table_names():
-        add_column_if_missing("performance_tests", "compressive_strength_3d", "FLOAT")
-        add_column_if_missing("performance_tests", "temperature", "FLOAT")
-        add_column_if_missing("performance_tests", "humidity", "FLOAT")
