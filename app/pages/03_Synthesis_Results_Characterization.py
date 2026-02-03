@@ -62,11 +62,11 @@ with tab1:
                 "Solids %": qc.solid_content_measured,
                 "Settling (mm)": qc.settling_height,
                 "Age (h)": qc.ageing_time if qc.ageing_time else 0.0,
-                "V-d10 (Bef)": qc.psd_before_v_d10,
-                "V-d50 (Bef)": qc.psd_before_v_d50,
-                "V-d90 (Bef)": qc.psd_before_v_d90,
-                "V-Mean (Bef)": qc.psd_before_v_mean,
-                "V-d50 (Aft)": qc.psd_after_v_d50,
+                "V-d10 (µm, Bef)": qc.psd_before_v_d10,
+                "V-d50 (µm, Bef)": qc.psd_before_v_d50,
+                "V-d90 (µm, Bef)": qc.psd_before_v_d90,
+                "V-Mean (µm, Bef)": qc.psd_before_v_mean,
+                "V-d50 (µm, Aft)": qc.psd_after_v_d50,
                 "Final Form": qc.custom_metrics.get("final_form", "N/A") if qc.custom_metrics else "N/A",
                 "Measured At": qc.measured_at.strftime("%Y-%m-%d %H:%M") if qc.measured_at else "N/A",
                 "Ref": qc.batch.lab_notebook_ref if qc.batch else "N/A"
@@ -75,7 +75,7 @@ with tab1:
         df_lib = pd.DataFrame(library_data)
         
         # Table View
-        st.dataframe(df_lib[["Trial #", "pH", "Solids %", "V-d50 (Bef)", "Final Form", "Measured At", "Ref"]], use_container_width=True)
+        st.dataframe(df_lib[["Trial #", "pH", "Solids %", "V-d50 (µm, Bef)", "Final Form", "Measured At", "Ref"]], use_container_width=True)
         
         # Visualization Section
         st.divider()
@@ -92,7 +92,7 @@ with tab1:
             )
             
         with viz_col2:
-            metric_options = ["pH", "Solids %", "Settling (mm)", "V-d10 (Bef)", "V-d50 (Bef)", "V-d90 (Bef)", "V-Mean (Bef)", "V-d50 (Aft)"]
+            metric_options = ["pH", "Solids %", "Settling (mm)", "V-d10 (µm, Bef)", "V-d50 (µm, Bef)", "V-d90 (µm, Bef)", "V-Mean (µm, Bef)", "V-d50 (µm, Aft)"]
             selected_metric = st.selectbox("Select Metric to Compare", options=metric_options, key="viz_metric")
             
         if trials_to_compare:
