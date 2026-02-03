@@ -37,10 +37,10 @@ with tab_dash:
     
     st.markdown("""
     #### Quick Navigator
-    - **🏛️ Materials**: Manage your Inventory.
-    - **📝 Recipe Designer**: Plan new trials.
-    - **🧪 Results**: Record synthesis data.
-    - **🏢 Mortar Tests**: Log performance results.
+    - **🏛️ Raw Materials**: Manage your Inventory.
+    - **📝 Recipes**: Plan new trials.
+    - **🧪 Measurement**: Record synthesis data.
+    - **🏢 Mortar and Paste Test**: Log performance results.
     - **📈 Analytics**: Unified data view.
     """)
 
@@ -55,11 +55,13 @@ with tab_guide:
     
     #### 👈 Use the Sidebar to Navigate
     
-    1.  **Materials**: Manage raw chemicals and liquid stock solutions.
-    2.  **Recipe Designer**: Theoretical stoichiometric calculations and AI strength prediction.
-    3.  **Synthesis Results & Characterization**: Log synthesis batches and detailed characterization.
+    1.  **Raw Materials**: Manage raw chemicals and liquid stock solutions.
+    2.  **Recipes**: Theoretical stoichiometric calculations and AI strength prediction.
+    3.  **Measurement**: Log synthesis batches and detailed characterization.
     4.  **Mortar and Paste Test**: Log compressive strength and fresh properties.
     5.  **Analytics**: Visualize performance trends and unified data analytics.
+    6.  **Data Import**: Bulk upload historical data.
+    7.  **Admin**: System logs and database maintenance.
     
     ---
     **System Status**: ✅ All Systems Operational
