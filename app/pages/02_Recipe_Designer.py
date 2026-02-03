@@ -58,24 +58,11 @@ with st.sidebar:
     st.info("Adjust parameters to see estimated 28d Strength.")
 
 # Navigation State
-if "nav_radio" not in st.session_state:
-    st.session_state.nav_radio = "📊 Dashboard"
+tab_dash, tab_designer, tab_library = st.tabs(["📊 Dashboard", "➕ Designer & Calculator", "📚 Recipe Library"])
 
-options = ["📊 Dashboard", "➕ Designer & Calculator", "📚 Recipe Library"]
+with tab_dash:
 
-# Navigation Bar
-selected_tab = st.radio("Navigation", 
-                        options, 
-                        key="nav_radio",
-                        horizontal=True,
-                        label_visibility="collapsed")
 
-# Map selection to variables
-is_dash = st.session_state.nav_radio == "📊 Dashboard"
-is_designer = st.session_state.nav_radio == "➕ Designer & Calculator"
-is_library = st.session_state.nav_radio == "📚 Recipe Library"
-
-if is_dash:
     st.subheader("Recipe Analytics")
     col1, col2, col3 = st.columns(3)
     
@@ -92,7 +79,7 @@ if is_dash:
         st.subheader("Ca/Si Ratio Distribution")
         st.bar_chart(df_recipes["Ca/Si Ratio"].value_counts())
 
-if is_designer:
+with tab_designer:
     with st.expander("ℹ️  Instructions", expanded=False):
         st.info("Define the chemical composition, stock solutions, and synthesis process steps.")
 
@@ -431,12 +418,12 @@ if is_designer:
             except Exception as e:
                 st.error(f"Error: {str(e)}")
 
-if is_library:
+with tab_library:
     st.subheader("📚 Recipe Library")
     
     def on_edit_click(rid):
         st.session_state.edit_recipe_id = rid
-        st.session_state.nav_radio = "➕ Designer & Calculator"
+        st.session_state.success_msg = "Recipe loaded for editing! ✏️ Please switch to the 'Designer & Calculator' tab above."
 
     # Filter Bar
     f1, f2 = st.columns([3, 1])
