@@ -66,6 +66,8 @@ if not st.session_state.user_email:
                 if st.form_submit_button("Create Account"):
                     if new_pwd != confirm_pwd:
                         st.error("Passwords do not match.")
+                    elif not new_email.endswith("@nanogence.com"):
+                        st.error("⚠️ Registration restricted to Nanogence employees (@nanogence.com).")
                     elif not new_email or not new_pwd:
                         st.error("Email and Password are required.")
                     else:
