@@ -450,13 +450,17 @@ with tab_library:
         }
         </style>
         """, unsafe_allow_html=True)
-
-        for r in recipes:
-            # Summary Label
-            date_str = r.recipe_date.strftime("%Y-%m-%d") if r.recipe_date else "?"
-            label = f"📄 **{r.code}**  |  {r.name}  |  📅 {date_str}"
-            
-            with st.expander(label):
+        
+        # Center the list to make it tighter (not full width)
+        _, c_list, _ = st.columns([1, 6, 1])
+        
+        with c_list:
+            for r in recipes:
+                # Summary Label
+                date_str = r.recipe_date.strftime("%Y-%m-%d") if r.recipe_date else "?"
+                label = f"📄 **{r.code}**  |  {r.name}  |  📅 {date_str}"
+                
+                with st.expander(label):
                 # Detailed View
                 d1, d2, d3, d4 = st.columns(4)
                 d1.metric("Ca/Si Ratio", f"{r.ca_si_ratio:.2f}")
