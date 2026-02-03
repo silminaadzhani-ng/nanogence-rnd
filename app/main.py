@@ -42,6 +42,26 @@ with tab_dash:
     - **📈 Analytics**: Unified data view.
     """)
 
+    st.divider()
+    st.subheader("💾 Database Maintenance")
+    st.info("Download a copy of the database for your daily backup to Google Drive.")
+    
+    db_file_path = "nanogence.db"
+    if os.path.exists(db_file_path):
+        with open(db_file_path, "rb") as f:
+            db_binary = f.read()
+        
+        timestamp = datetime.date.today().strftime("%Y%m%d")
+        st.download_button(
+            label="📥 Download Database Backup",
+            data=db_binary,
+            file_name=f"nanogence_backup_{timestamp}.db",
+            mime="application/x-sqlite3",
+            help="Download the full experimental database as a single file."
+        )
+    else:
+        st.error("Database file not found. Ensure the app has been initialized.")
+
 with tab_guide:
     st.markdown("""
     ### Welcome to the R&D Data Platform
