@@ -75,3 +75,8 @@ def init_db():
         ]
         for col, dtype in new_cols:
             add_column_if_missing("qc_measurements", col, dtype)
+
+    if "performance_tests" in inspector.get_table_names():
+        add_column_if_missing("performance_tests", "compressive_strength_3d", "FLOAT")
+        add_column_if_missing("performance_tests", "temperature", "FLOAT")
+        add_column_if_missing("performance_tests", "humidity", "FLOAT")

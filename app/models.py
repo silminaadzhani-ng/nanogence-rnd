@@ -181,6 +181,7 @@ class PerformanceTest(Base):
     compressive_strength_16h = Column(Float, nullable=True)
     compressive_strength_1d = Column(Float, nullable=True)
     compressive_strength_2d = Column(Float, nullable=True)
+    compressive_strength_3d = Column(Float, nullable=True)
     compressive_strength_7d = Column(Float, nullable=True)
     compressive_strength_28d = Column(Float, nullable=True)
     
