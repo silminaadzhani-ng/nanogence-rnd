@@ -198,3 +198,15 @@ class SystemLog(Base):
     event_type = Column(String) # e.g. "BACKUP_DOWNLOAD", "DB_RESET"
     details = Column(String) # e.g. "User downloaded nanogence_backup_2024..."
     user = Column(String, nullable=True)
+
+class User(Base):
+    __tablename__ = "users"
+    __table_args__ = {'extend_existing': True}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email = Column(String, unique=True, index=True)
+    hashed_password = Column(String)
+    full_name = Column(String)
+    role = Column(String, default="Researcher") # Admin, Researcher
+    is_active = Column(Integer, default=1) # 1=Active, 0=Inactive
+    created_at = Column(DateTime, default=datetime.utcnow)
