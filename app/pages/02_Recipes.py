@@ -461,43 +461,43 @@ with tab_library:
                 label = f"📄 **{r.code}**  |  {r.name}  |  📅 {date_str}"
                 
                 with st.expander(label):
-                # Detailed View
-                d1, d2, d3, d4 = st.columns(4)
-                d1.metric("Ca/Si Ratio", f"{r.ca_si_ratio:.2f}")
-                d2.metric("Solids", f"{r.total_solid_content:.1f}%")
-                d3.metric("Target pH", f"{r.target_ph}")
-                d4.metric("PCE Dosage", f"{r.pce_content_wt:.1f}%")
-                
-                st.markdown("---")
-                s1, s2 = st.columns(2)
-                
-                # Safe access to relationships
-                ca_code = r.ca_stock_batch.code if r.ca_stock_batch else "Manual/None"
-                si_code = r.si_stock_batch.code if r.si_stock_batch else "Manual/None"
-                
-                s1.write(f"**Ca Source:** {ca_code}")
-                s2.write(f"**Si Source:** {si_code}")
-                
-                if r.process_config:
-                    st.caption(f"**Feeding:** {r.process_config.get('feeding_sequence', 'N/A')}")
-                    notes = r.process_config.get('procedure', '')
-                    if notes:
-                        st.text_area("Procedure Notes", notes, height=68, disabled=True, key=f"d_notes_{r.id}")
-                
-                st.markdown("---")
-                
-                # Actions
-                ac1, ac2, ac3 = st.columns([1, 1, 4])
-                ac1.button("✏️ Edit", key=f"edit_{r.id}", on_click=on_edit_click, args=(r.id,))
-                # No separate if block needed as callback handles state update
+                    # Detailed View
+                    d1, d2, d3, d4 = st.columns(4)
+                    d1.metric("Ca/Si Ratio", f"{r.ca_si_ratio:.2f}")
+                    d2.metric("Solids", f"{r.total_solid_content:.1f}%")
+                    d3.metric("Target pH", f"{r.target_ph}")
+                    d4.metric("PCE Dosage", f"{r.pce_content_wt:.1f}%")
                     
-                if ac2.button("🗑️ Delete", key=f"del_{r.id}"):
-                     try:
-                        db.delete(r)
-                        db.commit()
-                        st.session_state.success_msg = f"Recipe '{r.name}' deleted."
-                        st.rerun()
-                     except Exception as e:
-                        st.error(f"Error: {e}")
+                    st.markdown("---")
+                    s1, s2 = st.columns(2)
+                    
+                    # Safe access to relationships
+                    ca_code = r.ca_stock_batch.code if r.ca_stock_batch else "Manual/None"
+                    si_code = r.si_stock_batch.code if r.si_stock_batch else "Manual/None"
+                    
+                    s1.write(f"**Ca Source:** {ca_code}")
+                    s2.write(f"**Si Source:** {si_code}")
+                    
+                    if r.process_config:
+                        st.caption(f"**Feeding:** {r.process_config.get('feeding_sequence', 'N/A')}")
+                        notes = r.process_config.get('procedure', '')
+                        if notes:
+                            st.text_area("Procedure Notes", notes, height=68, disabled=True, key=f"d_notes_{r.id}")
+                    
+                    st.markdown("---")
+                    
+                    # Actions
+                    ac1, ac2, ac3 = st.columns([1, 1, 4])
+                    ac1.button("✏️ Edit", key=f"edit_{r.id}", on_click=on_edit_click, args=(r.id,))
+                    # No separate if block needed as callback handles state update
+                        
+                    if ac2.button("🗑️ Delete", key=f"del_{r.id}"):
+                         try:
+                            db.delete(r)
+                            db.commit()
+                            st.session_state.success_msg = f"Recipe '{r.name}' deleted."
+                            st.rerun()
+                         except Exception as e:
+                            st.error(f"Error: {e}")
     else:
         st.info("No recipes found in the library.")
