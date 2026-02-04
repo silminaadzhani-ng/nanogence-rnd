@@ -74,34 +74,37 @@ with tab1:
         
         df_lib = pd.DataFrame(library_data)
         
-        # Table View
-        st.dataframe(df_lib[["Trial #", "pH", "Solids %", "V-d50 (µm, Bef)", "Final Form", "Measured At", "Measurement ID"]], use_container_width=True)
+        # Table View with Selection
+        selection_event = st.dataframe(
+            df_lib[["Measurement ID", "Trial #", "Age (h)", "pH", "Solids %", "V-d50 (µm, Bef)", "Final Form"]], 
+            use_container_width=True,
+            hide_index=True,
+            on_select="rerun",
+            selection_mode="multi-row",
+            key="lib_selection"
+        )
         
+        selected_rows = selection_event.selection.rows
+        df_selected = df_lib.iloc[selected_rows] if selected_rows else df_lib.head(5)
+
         # Visualization Section
         st.divider()
-        st.subheader("📊 Results Comparison Chart")
+        st.subheader("📊 Results Comparison")
         
         viz_col1, viz_col2 = st.columns([3, 1])
         
         with viz_col1:
-            trials_to_compare = st.multiselect(
-                "Select Trials to Compare",
-                options=df_lib["Trial #"].unique(),
-                default=list(df_lib["Trial #"].unique()[:5]),
-                key="viz_trials"
-            )
+            st.info(f"Showing comparison for **{len(df_selected)}** selected measurement(s).")
             
         with viz_col2:
             metric_options = ["pH", "Solids %", "Settling (mm)", "V-d10 (µm, Bef)", "V-d50 (µm, Bef)", "V-d90 (µm, Bef)", "V-Mean (µm, Bef)", "V-d50 (µm, Aft)"]
             selected_metric = st.selectbox("Select Metric to Compare", options=metric_options, key="viz_metric")
             
-        if trials_to_compare:
-            df_filtered = df_lib[df_lib["Trial #"].isin(trials_to_compare)]
-            
-            # Use Plotly for a more premium look if possible, or standard bar_chart
+        if not df_selected.empty:
+            # --- Chart ---
             import plotly.express as px
             fig = px.bar(
-                df_filtered, 
+                df_selected, 
                 x="Measurement ID", 
                 y=selected_metric,
                 color="Trial #",
@@ -110,10 +113,19 @@ with tab1:
                 template="plotly_white",
                 hover_data=["Age (h)", "Trial #"]
             )
-            fig.update_layout(showlegend=False)
+            fig.update_layout(showlegend=True, legend_title_text="Trials")
             st.plotly_chart(fig, use_container_width=True)
+
+            # --- Pivoted Comparison Table ---
+            st.subheader("📋 Detailed Comparison (Pivoted)")
+            # Metrics to include in pivot
+            pivot_metrics = ["Trial #", "Measurement ID", "Age (h)", "pH", "Solids %", "V-d10 (µm, Bef)", "V-d50 (µm, Bef)", "V-d90 (µm, Bef)", "V-Mean (µm, Bef)", "Final Form"]
+            
+            # Create pivoted view: Metrics as Index, Measurement IDs as Columns
+            df_pivot = df_selected[pivot_metrics].set_index("Measurement ID").T
+            st.dataframe(df_pivot, use_container_width=True)
         else:
-            st.warning("Please select at least one trial to compare.")
+            st.warning("Please select at least one row from the table above to compare.")
     else:
         st.info("No experimental results recorded yet.")
 
