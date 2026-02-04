@@ -29,11 +29,21 @@ st.title("🧪 Nanogence R&D Platform")
 tab_dash, tab_guide = st.tabs(["📊 Dashboard", "📖 User Guide"])
 
 with tab_dash:
+    from app.database import engine
+    
     st.subheader("Platform Health & Summary")
     c1, c2, c3 = st.columns(3)
-    c1.success("Database: Connected")
-    c2.info("Environment: Local / Cloud")
-    c3.warning("AI Model: Loaded")
+    
+    # Check Database Type
+    db_url = str(engine.url)
+    if "postgresql" in db_url:
+        c1.success("Database: ☁️ Cloud (Persistent)")
+    else:
+        c1.error("Database: ⚠️ Local (Data lost on sleep)")
+        st.warning("⚠️ **CRITICAL: You are using temporary storage.** To save your data permanently, you must add your Database Secrets to the Streamlit Cloud settings.")
+
+    c2.info("Environment: Production")
+    c3.success("AI Model: Active")
     
     st.markdown("""
     #### Quick Navigator
