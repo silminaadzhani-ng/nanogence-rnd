@@ -146,7 +146,7 @@ with tab2:
         hide_index=True,
         on_select="rerun",
         selection_mode="single-row",
-        column_order=["Code", "Name", "Created"]
+        column_order=["Name", "Code", "Created"]
     )
     
     selected_indices = recipe_selection.selection.rows
