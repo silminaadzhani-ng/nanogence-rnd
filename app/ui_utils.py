@@ -21,9 +21,21 @@ def display_logo():
             font-weight: 500;
         }
         
-        /* Sidebar styling to match logo background subtly */
+        /* Sidebar styling - Nanogence Blue Theme */
         section[data-testid="stSidebar"] {
-            background-color: #f8f9fa;
+            background-color: #2E6DA4 !important;
+        }
+        
+        /* Sidebar Text and Icons to White for contrast */
+        section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+        section[data-testid="stSidebar"] span,
+        section[data-testid="stSidebar"] div {
+            color: #FFFFFF !important;
+        }
+        
+        /* Sidebar Logo container background removal */
+        [data-testid="stSidebarNav"] {
+            background-color: transparent !important;
         }
         
         /* Headings */
