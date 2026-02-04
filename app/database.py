@@ -1,4 +1,4 @@
-import os
+import streamlit as st
 from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -6,11 +6,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./nanogence.db")
+# Prioritize Streamlit Secrets (Cloud), then Env Var, then Local SQLite
+if "DATABASE_URL" in st.secrets:
+    DATABASE_URL = st.secrets["DATABASE_URL"]
+else:
+    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./nanogence.db")
 
-engine = create_engine(
-    DATABASE_URL, connect_args={"check_same_thread": False}
-)
+# Postgres requires different args than SQLite
+if "postgresql" in DATABASE_URL:
+    engine = create_engine(DATABASE_URL)
+else:
+    engine = create_engine(
+        DATABASE_URL, connect_args={"check_same_thread": False}
+    )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
