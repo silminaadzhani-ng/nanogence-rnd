@@ -102,12 +102,13 @@ with tab1:
             import plotly.express as px
             fig = px.bar(
                 df_filtered, 
-                x="Trial #", 
+                x="Measurement ID", 
                 y=selected_metric,
                 color="Trial #",
                 title=f"Comparison: {selected_metric}",
                 text_auto='.2f',
-                template="plotly_white"
+                template="plotly_white",
+                hover_data=["Age (h)", "Trial #"]
             )
             fig.update_layout(showlegend=False)
             st.plotly_chart(fig, use_container_width=True)
