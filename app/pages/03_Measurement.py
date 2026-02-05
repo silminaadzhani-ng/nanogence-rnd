@@ -122,7 +122,22 @@ with tab1:
             pivot_metrics = ["Trial #", "Measurement ID", "Age (h)", "pH", "Solids %", "V-d10 (µm, Bef)", "V-d50 (µm, Bef)", "V-d90 (µm, Bef)", "V-Mean (µm, Bef)", "Final Form"]
             
             # Create pivoted view: Metrics as Index, Measurement IDs as Columns
-            df_pivot = df_selected[pivot_metrics].set_index("Measurement ID").T
+            df_display = df_selected[pivot_metrics].copy()
+            
+            # Handle duplicate Measurement IDs to prevent crash
+            counts = df_display["Measurement ID"].value_counts()
+            duplicates = counts[counts > 1].index.tolist()
+            
+            if duplicates:
+                counter = {}
+                def make_unique(name):
+                    if name in duplicates:
+                        counter[name] = counter.get(name, 0) + 1
+                        return f"{name} ({counter[name]})"
+                    return name
+                df_display["Measurement ID"] = df_display["Measurement ID"].apply(make_unique)
+
+            df_pivot = df_display.set_index("Measurement ID").T
             st.dataframe(df_pivot, use_container_width=True)
         else:
             st.warning("Please select at least one row from the table above to compare.")
