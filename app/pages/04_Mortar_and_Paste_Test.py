@@ -83,10 +83,11 @@ with tab_mix:
     cem_mass = c_m2.number_input("Cement Mass [g]", min_value=0.0, value=450.0, step=1.0)
     sand_mass = c_m3.number_input("Standard Sand [g]", min_value=0.0, value=1350.0, step=1.0)
     
-    c_m4, c_m5, c_m6 = st.columns(3)
+    c_m4, c_m5, c_m6, c_m7 = st.columns(4)
     sc_info = c_m4.number_input("NG Solid Content [%]", key="sc_input", format="%.2f", help="Automatically fetched from batch measurements or theoretical recipe content.")
     target_solid_dosage = c_m5.number_input("Target Solid Dosage [% of cem]", min_value=0.0, max_value=5.0, value=0.5, step=0.01)
     wc_ratio = c_m6.number_input("w/cement ratio [-]", min_value=0.1, max_value=1.0, value=0.45, step=0.01)
+    defoamer_g = c_m7.number_input("Defoamer [g]", min_value=0.0, value=0.0, step=0.01)
 
     # --- Precise Calculations Matching User spreadsheet logic ---
     # 1. Target Dry Mass [g]
@@ -126,7 +127,7 @@ with tab_mix:
         ["Cement", f"{cem_mass:.1f} g", cem_type],
         ["Sand", f"{sand_mass:.1f} g", "Standard sand"],
         ["NG Product", f"{m_ng_liq:.2f} g", f"at {sc_info:.2f}% SC"],
-        ["Defoamer", "Manual entry below", ""],
+        ["Defoamer", f"{defoamer_g:.3f} g", "Optional additive"],
         ["---", "---", "---"],
         ["Calculated Added Water", f"**{added_water:.2f} g**", f"at w/c {wc_ratio}"]
     ]
@@ -134,20 +135,49 @@ with tab_mix:
 
     st.markdown("---")
     st.caption("Casting Metadata")
-    meta1, meta2, meta3 = st.columns(3)
-    cast_date = meta1.date_input("Casting Date", value=datetime.date.today(), key="cast_date_mix")
-    cast_time = meta2.text_input("Casting Time", value=datetime.datetime.now().strftime("%Hh%M"), key="cast_time_mix")
-    cube_code = meta3.text_input("Cube Code (e.g. AC-H146)", key="cube_code_mix")
     
-    meta4, meta5, meta6, meta7 = st.columns(4)
-    operator = meta4.text_input("Operator", value="Silmina Adzhani", key="op_mix")
-    humidity = meta5.number_input("Curing RH [%]", value=90.0)
-    num_cubes = meta6.number_input("N° of Cubes", value=12, step=1)
-    defoamer_g = meta7.number_input("Defoamer [g]", min_value=0.0, value=0.0, step=0.01)
+    # Logic to get the next sequential H-number and operator initials
+    def get_auto_code(op_name):
+        initials = "".join([p[0].upper() for p in op_name.split() if p]) or "OP"
+        try:
+            # Query all PerformanceTest records and find the maximum -H number in raw_data
+            all_tests = db.query(PerformanceTest).all()
+            max_num = 144 # Starting base for old experiments if none found
+            for t in all_tests:
+                code = t.raw_data.get("cube_code", "")
+                if "-H" in code:
+                    try:
+                        num_part = code.split("-H")[-1].strip()
+                        # handle cases like "H145 (ref)"
+                        num_only = "".join(filter(str.isdigit, num_part))
+                        if num_only:
+                            num = int(num_only)
+                            if num > max_num: max_num = num
+                    except: continue
+            return f"{initials}-H{max_num + 1}"
+        except:
+            return f"{initials}-H145"
+
+    meta_row1 = st.columns(3)
+    operator = meta_row1[0].text_input("Operator", value="Silmina Adzhani", key="op_mix")
+    
+    # Auto-generate code based on operator
+    suggested_code = get_auto_code(operator)
+    cube_code = meta_row1[1].text_input("Cube Code (Auto-generated)", value=suggested_code, key="cube_code_mix")
+    cast_date = meta_row1[2].date_input("Casting Date", value=datetime.date.today(), key="cast_date_mix")
+
+    meta_row2 = st.columns(3)
+    # Time Selection Format
+    cast_time_val = meta_row2[0].time_input("Casting Time", value=datetime.datetime.now().time(), key="cast_time_input")
+    # Format for storage: HHhMM
+    cast_time_str = cast_time_val.strftime("%Hh%M")
+    
+    humidity = meta_row2[1].number_input("Curing RH [%]", value=90.0)
+    num_cubes = meta_row2[2].number_input("N° of Cubes", value=12, step=1)
 
     if st.button("✅ Initialise Mix & Casting", type="primary"):
         if not cube_code:
-            st.error("Please enter a Cube Code.")
+            st.error("Please enter/confirm a Cube Code.")
         else:
             try:
                 mix_data = {
@@ -156,7 +186,7 @@ with tab_mix:
                     "dosage_g": m_ng_liq, "dosage_liquid_pct": liq_dosage_pct,
                     "water_from_ng_g": water_from_ng, "wc_ratio": wc_ratio,
                     "water_added_g": added_water, "num_cubes": num_cubes,
-                    "casting_time": cast_time, "relative_humidity": humidity,
+                    "casting_time": cast_time_str, "relative_humidity": humidity,
                     "defoamer_g": defoamer_g
                 }
                 new_test = PerformanceTest(
@@ -170,6 +200,7 @@ with tab_mix:
                 db.commit()
                 st.success(f"Mix Design for **{cube_code}** saved successfully!")
                 st.balloons()
+                st.rerun()
             except Exception as e:
                 st.error(f"Error: {e}")
 
