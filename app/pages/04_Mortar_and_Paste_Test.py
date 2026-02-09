@@ -62,39 +62,55 @@ with tab_mix:
         
         sc_val = qc_24h.solid_content_measured if qc_24h else (batch_select.recipe.total_solid_content if batch_select.recipe else 0.0)
 
-        with st.form("mix_design_form"):
-            c_m1, c_m2, c_m3 = st.columns(3)
-            cem_type = c_m1.text_input("Cement Type", value="CEM I 42.5 N Heidelberg")
-            cem_mass = c_m2.number_input("Cement Mass [g]", min_value=0.0, value=450.0, step=1.0)
-            sand_mass = c_m3.number_input("Standard Sand [g]", min_value=0.0, value=1350.0, step=1.0)
-            
-            c_m4, c_m5, c_m6 = st.columns(3)
-            sc_info = c_m4.number_input("NG Solid Content [%]", value=sc_val, format="%.2f")
-            target_solid_dosage = c_m5.number_input("Target Solid Dosage [% of cem]", min_value=0.0, max_value=5.0, value=0.5, step=0.01)
-            wc_ratio = c_m6.number_input("w/cement ratio [-]", min_value=0.1, max_value=1.0, value=0.45, step=0.01)
+        # Sub-header for interactive mix design
+        st.markdown("### 🛠️ Step 1: Design & Cast Mix")
+        
+        c_m1, c_m2, c_m3 = st.columns(3)
+        cem_type = c_m1.text_input("Cement Type", value="CEM I 42.5 N Heidelberg")
+        cem_mass = c_m2.number_input("Cement Mass [g]", min_value=0.0, value=450.0, step=1.0)
+        sand_mass = c_m3.number_input("Standard Sand [g]", min_value=0.0, value=1350.0, step=1.0)
+        
+        c_m4, c_m5, c_m6 = st.columns(3)
+        # Automatic Solid Content Input
+        sc_info = c_m4.number_input("NG Solid Content [%]", value=sc_val, format="%.2f", help="Automatically fetched from batch measurements.")
+        target_solid_dosage = c_m5.number_input("Target Solid Dosage [% of cem]", min_value=0.0, max_value=5.0, value=0.5, step=0.01)
+        wc_ratio = c_m6.number_input("w/cement ratio [-]", min_value=0.1, max_value=1.0, value=0.45, step=0.01)
 
-            # Calculations
-            m_dry = cem_mass * (target_solid_dosage / 100.0)
-            m_ng_liq = m_dry / (sc_info / 100.0) if sc_info > 0 else 0.0
-            liq_dosage_pct = (m_ng_liq / cem_mass) * 100.0 if cem_mass > 0 else 0.0
-            water_from_ng = m_ng_liq - m_dry
-            total_water = cem_mass * wc_ratio
-            added_water = total_water - water_from_ng
-            
-            st.info(f"💡 **Calculated Mix:** NG Dosage: **{m_ng_liq:.2f} g** | Water to Add: **{added_water:.2f} g**")
+        # Calculations
+        m_dry = cem_mass * (target_solid_dosage / 100.0)
+        m_ng_liq = m_dry / (sc_info / 100.0) if sc_info > 0 else 0.0
+        liq_dosage_pct = (m_ng_liq / cem_mass) * 100.0 if cem_mass > 0 else 0.0
+        water_from_ng = m_ng_liq * (1 - (sc_info / 100.0)) # This is more accurate: Liquid mass * (1 - SC%)
+        total_water_required = cem_mass * wc_ratio
+        added_water = total_water_required - water_from_ng
+        
+        # Display Mix Design Table
+        st.markdown("#### 📋 Calculated Mix Design Table")
+        mix_summary = pd.DataFrame([
+            {"Component": "Cement", "Mass [g]": round(cem_mass, 2), "Note": cem_type},
+            {"Component": "Standard Sand", "Mass [g]": round(sand_mass, 2), "Note": "1:3 ratio"},
+            {"Component": "NG Product (Liquid)", "Mass [g]": round(m_ng_liq, 2), "Note": f"Dosage: {liq_dosage_pct:.2f}% (Liquid)"},
+            {"Component": "Added Water", "Mass [g]": round(added_water, 2), "Note": f"Total w/c = {wc_ratio}"},
+            {"Component": "Total Water in Mix", "Mass [g]": round(total_water_required, 2), "Note": f"Incl. {water_from_ng:.2f}g from NG"}
+        ])
+        st.table(mix_summary)
 
-            st.markdown("---")
-            meta1, meta2, meta3 = st.columns(3)
-            cast_date = meta1.date_input("Casting Date", value=datetime.date.today(), key="cast_date_mix")
-            cast_time = meta2.text_input("Casting Time", value=datetime.datetime.now().strftime("%Hh%M"), key="cast_time_mix")
-            cube_code = meta3.text_input("Cube Code (e.g. AC-H146)", key="cube_code_mix")
-            
-            meta4, meta5, meta6 = st.columns(3)
-            operator = meta4.text_input("Operator", value="Silmina Adzhani", key="op_mix")
-            humidity = meta5.number_input("Curing RH [%]", value=90.0)
-            num_cubes = meta6.number_input("N° of Cubes", value=12, step=1)
+        st.markdown("---")
+        st.caption("Casting Metadata")
+        meta1, meta2, meta3 = st.columns(3)
+        cast_date = meta1.date_input("Casting Date", value=datetime.date.today(), key="cast_date_mix")
+        cast_time = meta2.text_input("Casting Time", value=datetime.datetime.now().strftime("%Hh%M"), key="cast_time_mix")
+        cube_code = meta3.text_input("Cube Code (e.g. AC-H146)", key="cube_code_mix")
+        
+        meta4, meta5, meta6 = st.columns(3)
+        operator = meta4.text_input("Operator", value="Silmina Adzhani", key="op_mix")
+        humidity = meta5.number_input("Curing RH [%]", value=90.0)
+        num_cubes = meta6.number_input("N° of Cubes", value=12, step=1)
 
-            if st.form_submit_button("✅ Initialise Mix & Casting"):
+        if st.button("✅ Initialise Mix & Casting", type="primary"):
+            if not cube_code:
+                st.error("Please enter a Cube Code.")
+            else:
                 try:
                     mix_data = {
                         "cement_type": cem_type, "cement_mass_g": cem_mass, "sand_mass_g": sand_mass,
@@ -111,7 +127,8 @@ with tab_mix:
                     )
                     db.add(new_test)
                     db.commit()
-                    st.success(f"Mix Design for **{cube_code}** saved. Now log results in the next tab!")
+                    st.success(f"Mix Design for **{cube_code}** saved successfully!")
+                    st.balloons()
                 except Exception as e:
                     st.error(f"Error: {e}")
 
