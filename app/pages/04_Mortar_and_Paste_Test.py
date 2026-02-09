@@ -103,11 +103,12 @@ with tab_mix:
     # Formula: dosage [g] * (1 - NG Solid Content / 100)
     water_from_ng = round(m_ng_liq * (1 - (sc_info / 100.0)), 2)
     
-    # 4. Total Water Required (Cem * w/c)
-    total_water_req = round(cem_mass * wc_ratio, 2)
+    # 4. Final Added Water (Water [g] in user table)
+    # Formula: total added water = (w/cement ratio * cement mass [g]) - Water from NG
+    added_water = round((wc_ratio * cem_mass) - water_from_ng, 2)
     
-    # 5. Final Added Water (Water [g] in user table)
-    added_water = total_water_req - water_from_ng
+    # Total water for display
+    total_water_req = round(cem_mass * wc_ratio, 2)
     
     # 6. Liquid Dosage % (for reporting/verification)
     liq_dosage_pct = (m_ng_liq / cem_mass) * 100.0 if cem_mass > 0 else 0.0
