@@ -130,15 +130,7 @@ with tab_mix:
     # 6. Liquid Dosage % (for reporting/verification)
     liq_dosage_pct = (m_ng_liq / cem_mass) * 100.0 if cem_mass > 0 else 0.0
 
-    st.markdown("#### 📋 Mix Design Summary")
-    # Columnar summary view like the user spreadsheet
-    col_a, col_b, col_c, col_d = st.columns(4)
-    col_a.metric("Total Water Req.", f"{total_water_req:.2f} g")
-    col_b.metric("Water from NG", f"{water_from_ng:.2f} g")
-    col_c.metric("WATER TO ADD", f"{added_water:.2f} g", delta_color="inverse")
-    col_d.metric("NG Liquid Mass", f"{m_ng_liq:.2f} g")
-
-    # Detailed Table
+    st.markdown("#### 📋 Mix Design Summary Table")
     mix_summary_data = [
         ["Cement", f"{cem_mass:.1f} g", cem_type],
         ["Sand", f"{sand_mass:.1f} g", "Standard sand"],
