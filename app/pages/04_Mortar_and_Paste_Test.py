@@ -41,104 +41,142 @@ with tab_mix:
     st.subheader("🛠️ Step 1: Design & Cast Mix")
     
     # 1. Select Synthesis Batch (The "NG Product")
-    batches = db.query(SynthesisBatch).order_by(SynthesisBatch.execution_date.desc()).limit(100).all()
+    raw_batches = db.query(SynthesisBatch).order_by(SynthesisBatch.execution_date.desc()).all()
+    batch_options = [None] + raw_batches
+    
+    def format_batch(x):
+        if x is None: return "Reference / Commercial (No Synthesis Batch)"
+        return f"{x.lab_notebook_ref} ({x.recipe.name if x.recipe else 'Unknown'})"
+
     batch_select = st.selectbox(
         "Select Synthesis Batch (NG Product)", 
-        options=batches, 
-        format_func=lambda x: f"{x.lab_notebook_ref} ({x.recipe.name if x.recipe else 'Unknown Recipe'})",
+        options=batch_options, 
+        format_func=format_batch,
         key="mix_batch_select"
     )
 
-    if batch_select:
-        # Try to find 24h Solid Content measurement for this batch
-        qc_24h = db.query(QCMeasurement).filter(
-            QCMeasurement.batch_id == batch_select.id,
-            QCMeasurement.ageing_time >= 20.0, # Looking for roughly 24h
-            QCMeasurement.ageing_time <= 28.0
-        ).order_by(func.abs(QCMeasurement.ageing_time - 24.0)).first()
-        
-        if not qc_24h:
-            qc_24h = db.query(QCMeasurement).filter(QCMeasurement.batch_id == batch_select.id).order_by(QCMeasurement.measured_at.desc()).first()
-        
-        sc_val = qc_24h.solid_content_measured if qc_24h else (batch_select.recipe.total_solid_content if batch_select.recipe else 0.0)
+    # Manage Solid Content state
+    if "sc_input" not in st.session_state:
+        st.session_state.sc_input = 0.0
+    
+    # Update SC when batch changes
+    current_batch_id = batch_select.id if batch_select else "REF"
+    if "last_processed_batch_id" not in st.session_state or st.session_state.last_processed_batch_id != current_batch_id:
+        st.session_state.last_processed_batch_id = current_batch_id
+        if batch_select:
+            qc_24h = db.query(QCMeasurement).filter(
+                QCMeasurement.batch_id == batch_select.id,
+                QCMeasurement.ageing_time >= 20.0,
+                QCMeasurement.ageing_time <= 28.0
+            ).order_by(func.abs(QCMeasurement.ageing_time - 24.0)).first()
+            if not qc_24h:
+                qc_24h = db.query(QCMeasurement).filter(QCMeasurement.batch_id == batch_select.id).order_by(QCMeasurement.measured_at.desc()).first()
+            st.session_state.sc_input = qc_24h.solid_content_measured if qc_24h else (batch_select.recipe.total_solid_content if batch_select.recipe else 0.0)
+        else:
+            st.session_state.sc_input = 0.0
 
-        # Sub-header for interactive mix design
-        st.markdown("### 🛠️ Step 1: Design & Cast Mix")
-        
-        c_m1, c_m2, c_m3 = st.columns(3)
-        cem_type = c_m1.text_input("Cement Type", value="CEM I 42.5 N Heidelberg")
-        cem_mass = c_m2.number_input("Cement Mass [g]", min_value=0.0, value=450.0, step=1.0)
-        sand_mass = c_m3.number_input("Standard Sand [g]", min_value=0.0, value=1350.0, step=1.0)
-        
-        c_m4, c_m5, c_m6 = st.columns(3)
-        # Automatic Solid Content Input
-        sc_info = c_m4.number_input("NG Solid Content [%]", value=sc_val, format="%.2f", help="Automatically fetched from batch measurements.")
-        target_solid_dosage = c_m5.number_input("Target Solid Dosage [% of cem]", min_value=0.0, max_value=5.0, value=0.5, step=0.01)
-        wc_ratio = c_m6.number_input("w/cement ratio [-]", min_value=0.1, max_value=1.0, value=0.45, step=0.01)
+    # Sub-header logic...
+    st.markdown("---")
+    
+    c_m1, c_m2, c_m3 = st.columns(3)
+    cem_type = c_m1.text_input("Cement Type", value="CEM I 42.5 N Heidelberg")
+    cem_mass = c_m2.number_input("Cement Mass [g]", min_value=0.0, value=450.0, step=1.0)
+    sand_mass = c_m3.number_input("Standard Sand [g]", min_value=0.0, value=1350.0, step=1.0)
+    
+    c_m4, c_m5, c_m6 = st.columns(3)
+    sc_info = c_m4.number_input("NG Solid Content [%]", key="sc_input", format="%.2f", help="Automatically fetched from batch measurements or theoretical recipe content.")
+    target_solid_dosage = c_m5.number_input("Target Solid Dosage [% of cem]", min_value=0.0, max_value=5.0, value=0.5, step=0.01)
+    wc_ratio = c_m6.number_input("w/cement ratio [-]", min_value=0.1, max_value=1.0, value=0.45, step=0.01)
 
-        # Calculations
-        m_dry = cem_mass * (target_solid_dosage / 100.0)
-        m_ng_liq = m_dry / (sc_info / 100.0) if sc_info > 0 else 0.0
-        liq_dosage_pct = (m_ng_liq / cem_mass) * 100.0 if cem_mass > 0 else 0.0
-        water_from_ng = m_ng_liq * (1 - (sc_info / 100.0)) # This is more accurate: Liquid mass * (1 - SC%)
-        total_water_required = cem_mass * wc_ratio
-        added_water = total_water_required - water_from_ng
+    # --- Precise Calculations Matching User spreadsheet logic ---
+    # 1. Target Dry Mass [g]
+    m_dry_target = cem_mass * (target_solid_dosage / 100.0)
+    
+    # 2. Dosage [g] (Liquid Mass of NG product)
+    # Formula: m_liq = cem_mass * (target_solid / 100) / (sc / 100)
+    if sc_info > 0:
+        m_ng_liq = round(m_dry_target / (sc_info / 100.0), 2)
+    else:
+        m_ng_liq = 0.0
+    
+    # 3. Water from NG [g]
+    # This is the water part of the liquid dose: Liquid Mass - Solid Mass
+    # Note: Using the rounded m_ng_liq for the water part logic
+    water_from_ng = round(m_ng_liq - m_dry_target, 2)
+    
+    # 4. Total Water Required (Cem * w/c)
+    total_water_req = round(cem_mass * wc_ratio, 2)
+    
+    # 5. Final Added Water (Water [g] in user table)
+    added_water = total_water_req - water_from_ng
+    
+    # 6. Liquid Dosage % (for reporting/verification)
+    liq_dosage_pct = (m_ng_liq / cem_mass) * 100.0 if cem_mass > 0 else 0.0
 
-        st.markdown("---")
-        st.caption("Casting Metadata")
-        meta1, meta2, meta3 = st.columns(3)
-        cast_date = meta1.date_input("Casting Date", value=datetime.date.today(), key="cast_date_mix")
-        cast_time = meta2.text_input("Casting Time", value=datetime.datetime.now().strftime("%Hh%M"), key="cast_time_mix")
-        cube_code = meta3.text_input("Cube Code (e.g. AC-H146)", key="cube_code_mix")
-        
-        meta4, meta5, meta6, meta7 = st.columns(4)
-        operator = meta4.text_input("Operator", value="Silmina Adzhani", key="op_mix")
-        humidity = meta5.number_input("Curing RH [%]", value=90.0)
-        num_cubes = meta6.number_input("N° of Cubes", value=12, step=1)
-        defoamer_g = meta7.number_input("Defoamer [g]", min_value=0.0, value=0.0, step=0.01)
+    st.markdown("#### 📋 Mix Design Summary")
+    # Columnar summary view like the user spreadsheet
+    col_a, col_b, col_c, col_d = st.columns(4)
+    col_a.metric("Total Water Req.", f"{total_water_req:.2f} g")
+    col_b.metric("Water from NG", f"{water_from_ng:.2f} g")
+    col_c.metric("WATER TO ADD", f"{added_water:.2f} g", delta_color="inverse")
+    col_d.metric("NG Liquid Mass", f"{m_ng_liq:.2f} g")
 
-        # Display Mix Design Table
-        st.markdown("#### 📋 Calculated Mix Design Table")
-        mix_summary = pd.DataFrame([
-            {"Component": "Cement", "Mass [g]": round(cem_mass, 2), "Note": cem_type},
-            {"Component": "Standard Sand", "Mass [g]": round(sand_mass, 2), "Note": "1:3 ratio"},
-            {"Component": "NG Product (Liquid)", "Mass [g]": round(m_ng_liq, 2), "Note": f"Dosage: {liq_dosage_pct:.2f}% (Liquid)"},
-            {"Component": "Defoamer", "Mass [g]": round(defoamer_g, 3), "Note": "Optional additive"},
-            {"Component": "Added Water", "Mass [g]": round(added_water, 2), "Note": f"Total w/c = {wc_ratio}"},
-            {"Component": "Total Water in Mix", "Mass [g]": round(total_water_required, 2), "Note": f"Incl. {water_from_ng:.2f}g from NG"}
-        ])
-        st.table(mix_summary)
+    # Detailed Table
+    mix_summary_data = [
+        ["Cement", f"{cem_mass:.1f} g", cem_type],
+        ["Sand", f"{sand_mass:.1f} g", "Standard sand"],
+        ["NG Product", f"{m_ng_liq:.2f} g", f"at {sc_info:.2f}% SC"],
+        ["Defoamer", "Manual entry below", ""],
+        ["---", "---", "---"],
+        ["Calculated Added Water", f"**{added_water:.2f} g**", f"at w/c {wc_ratio}"]
+    ]
+    st.table(pd.DataFrame(mix_summary_data, columns=["Component", "Mass", "Note"]))
 
-        if st.button("✅ Initialise Mix & Casting", type="primary"):
-            if not cube_code:
-                st.error("Please enter a Cube Code.")
-            else:
-                try:
-                    mix_data = {
-                        "cement_type": cem_type, "cement_mass_g": cem_mass, "sand_mass_g": sand_mass,
-                        "target_solid_dosage_pct": target_solid_dosage, "solid_content_pct": sc_info,
-                        "dosage_g": m_ng_liq, "dosage_liquid_pct": liq_dosage_pct,
-                        "water_from_ng_g": water_from_ng, "wc_ratio": wc_ratio,
-                        "water_added_g": added_water, "num_cubes": num_cubes,
-                        "casting_time": cast_time, "relative_humidity": humidity,
-                        "defoamer_g": defoamer_g
-                    }
-                    new_test = PerformanceTest(
-                        batch_id=batch_select.id, test_type="Mortar", mix_design=mix_data,
-                        cast_date=datetime.datetime.combine(cast_date, datetime.time.min),
-                        raw_data={"operator": operator, "cube_code": cube_code, "rh": humidity}
-                    )
-                    db.add(new_test)
-                    db.commit()
-                    st.success(f"Mix Design for **{cube_code}** saved successfully!")
-                    st.balloons()
-                except Exception as e:
-                    st.error(f"Error: {e}")
+    st.markdown("---")
+    st.caption("Casting Metadata")
+    meta1, meta2, meta3 = st.columns(3)
+    cast_date = meta1.date_input("Casting Date", value=datetime.date.today(), key="cast_date_mix")
+    cast_time = meta2.text_input("Casting Time", value=datetime.datetime.now().strftime("%Hh%M"), key="cast_time_mix")
+    cube_code = meta3.text_input("Cube Code (e.g. AC-H146)", key="cube_code_mix")
+    
+    meta4, meta5, meta6, meta7 = st.columns(4)
+    operator = meta4.text_input("Operator", value="Silmina Adzhani", key="op_mix")
+    humidity = meta5.number_input("Curing RH [%]", value=90.0)
+    num_cubes = meta6.number_input("N° of Cubes", value=12, step=1)
+    defoamer_g = meta7.number_input("Defoamer [g]", min_value=0.0, value=0.0, step=0.01)
+
+    if st.button("✅ Initialise Mix & Casting", type="primary"):
+        if not cube_code:
+            st.error("Please enter a Cube Code.")
+        else:
+            try:
+                mix_data = {
+                    "cement_type": cem_type, "cement_mass_g": cem_mass, "sand_mass_g": sand_mass,
+                    "target_solid_dosage_pct": target_solid_dosage, "solid_content_pct": sc_info,
+                    "dosage_g": m_ng_liq, "dosage_liquid_pct": liq_dosage_pct,
+                    "water_from_ng_g": water_from_ng, "wc_ratio": wc_ratio,
+                    "water_added_g": added_water, "num_cubes": num_cubes,
+                    "casting_time": cast_time, "relative_humidity": humidity,
+                    "defoamer_g": defoamer_g
+                }
+                new_test = PerformanceTest(
+                    batch_id=batch_select.id if batch_select else None, 
+                    test_type="Mortar", 
+                    mix_design=mix_data,
+                    cast_date=datetime.datetime.combine(cast_date, datetime.time.min),
+                    raw_data={"operator": operator, "cube_code": cube_code, "rh": humidity}
+                )
+                db.add(new_test)
+                db.commit()
+                st.success(f"Mix Design for **{cube_code}** saved successfully!")
+                st.balloons()
+            except Exception as e:
+                st.error(f"Error: {e}")
 
 with tab_log:
     st.subheader("📝 Step 2: Log Fresh & Hardened Results")
     
-    # Select from existing performance tests that don't have results yet (or just all)
+    # Select from existing performance tests
     perf_tests = db.query(PerformanceTest).order_by(PerformanceTest.cast_date.desc()).limit(50).all()
     if not perf_tests:
         st.info("No mixes designed yet. Go to the 'Mix Design' tab first.")
@@ -146,7 +184,7 @@ with tab_log:
         perf_select = st.selectbox(
             "Select Trial to Update", 
             options=perf_tests,
-            format_func=lambda x: f"{x.raw_data.get('cube_code', 'Unnamed')} ({x.batch.lab_notebook_ref if x.batch else '?'}) - {x.cast_date.strftime('%Y-%m-%d')}"
+            format_func=lambda x: f"{x.raw_data.get('cube_code', 'Unnamed')} ({x.batch.lab_notebook_ref if x.batch else 'Ref'}) - {x.cast_date.strftime('%Y-%m-%d')}"
         )
 
         if perf_select:
@@ -186,7 +224,6 @@ with tab_log:
                         perf_select.compressive_strength_7d = cs_7d
                         perf_select.compressive_strength_28d = cs_28d
                         
-                        # Update raw_data dictionary safely
                         new_raw = dict(perf_select.raw_data)
                         new_raw["cs_3d"] = cs_3d
                         new_raw["notes"] = notes
@@ -208,13 +245,14 @@ with tab_lib:
             raw = r.raw_data or {}
             table_data.append({
                 "Date": r.cast_date.strftime("%Y-%m-%d") if r.cast_date else "N/A",
-                "Measurement ID": r.batch.lab_notebook_ref if r.batch else "?",
+                "Measurement ID": r.batch.lab_notebook_ref if r.batch else "Ref",
                 "Cube Code": raw.get("cube_code", "N/A"),
-                "Cement": mix.get("cement_type", "N/A"),
                 "Cem [g]": mix.get("cement_mass_g", 0),
                 "NG [g]": mix.get("dosage_g", 0),
+                "Water NG [g]": mix.get("water_from_ng_g", 0),
                 "w/c": mix.get("wc_ratio", 0),
-                "Flow [mm]": r.flow,
+                "WATER ADDED [g]": f"**{mix.get('water_added_g', 0):.2f}**",
+                "Defoamer [g]": mix.get("defoamer_g", 0),
                 "1d [MPa]": r.compressive_strength_1d,
                 "28d [MPa]": r.compressive_strength_28d,
                 "Operator": raw.get("operator", "N/A")
