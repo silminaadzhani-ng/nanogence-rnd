@@ -100,9 +100,8 @@ with tab_mix:
         m_ng_liq = 0.0
     
     # 3. Water from NG [g]
-    # This is the water part of the liquid dose: Liquid Mass - Solid Mass
-    # Note: Using the rounded m_ng_liq for the water part logic
-    water_from_ng = round(m_ng_liq - m_dry_target, 2)
+    # Formula: dosage [g] * (1 - NG Solid Content / 100)
+    water_from_ng = round(m_ng_liq * (1 - (sc_info / 100.0)), 2)
     
     # 4. Total Water Required (Cem * w/c)
     total_water_req = round(cem_mass * wc_ratio, 2)
