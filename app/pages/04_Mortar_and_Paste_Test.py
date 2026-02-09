@@ -83,17 +83,6 @@ with tab_mix:
         water_from_ng = m_ng_liq * (1 - (sc_info / 100.0)) # This is more accurate: Liquid mass * (1 - SC%)
         total_water_required = cem_mass * wc_ratio
         added_water = total_water_required - water_from_ng
-        
-        # Display Mix Design Table
-        st.markdown("#### 📋 Calculated Mix Design Table")
-        mix_summary = pd.DataFrame([
-            {"Component": "Cement", "Mass [g]": round(cem_mass, 2), "Note": cem_type},
-            {"Component": "Standard Sand", "Mass [g]": round(sand_mass, 2), "Note": "1:3 ratio"},
-            {"Component": "NG Product (Liquid)", "Mass [g]": round(m_ng_liq, 2), "Note": f"Dosage: {liq_dosage_pct:.2f}% (Liquid)"},
-            {"Component": "Added Water", "Mass [g]": round(added_water, 2), "Note": f"Total w/c = {wc_ratio}"},
-            {"Component": "Total Water in Mix", "Mass [g]": round(total_water_required, 2), "Note": f"Incl. {water_from_ng:.2f}g from NG"}
-        ])
-        st.table(mix_summary)
 
         st.markdown("---")
         st.caption("Casting Metadata")
@@ -102,10 +91,23 @@ with tab_mix:
         cast_time = meta2.text_input("Casting Time", value=datetime.datetime.now().strftime("%Hh%M"), key="cast_time_mix")
         cube_code = meta3.text_input("Cube Code (e.g. AC-H146)", key="cube_code_mix")
         
-        meta4, meta5, meta6 = st.columns(3)
+        meta4, meta5, meta6, meta7 = st.columns(4)
         operator = meta4.text_input("Operator", value="Silmina Adzhani", key="op_mix")
         humidity = meta5.number_input("Curing RH [%]", value=90.0)
         num_cubes = meta6.number_input("N° of Cubes", value=12, step=1)
+        defoamer_g = meta7.number_input("Defoamer [g]", min_value=0.0, value=0.0, step=0.01)
+
+        # Display Mix Design Table
+        st.markdown("#### 📋 Calculated Mix Design Table")
+        mix_summary = pd.DataFrame([
+            {"Component": "Cement", "Mass [g]": round(cem_mass, 2), "Note": cem_type},
+            {"Component": "Standard Sand", "Mass [g]": round(sand_mass, 2), "Note": "1:3 ratio"},
+            {"Component": "NG Product (Liquid)", "Mass [g]": round(m_ng_liq, 2), "Note": f"Dosage: {liq_dosage_pct:.2f}% (Liquid)"},
+            {"Component": "Defoamer", "Mass [g]": round(defoamer_g, 3), "Note": "Optional additive"},
+            {"Component": "Added Water", "Mass [g]": round(added_water, 2), "Note": f"Total w/c = {wc_ratio}"},
+            {"Component": "Total Water in Mix", "Mass [g]": round(total_water_required, 2), "Note": f"Incl. {water_from_ng:.2f}g from NG"}
+        ])
+        st.table(mix_summary)
 
         if st.button("✅ Initialise Mix & Casting", type="primary"):
             if not cube_code:
@@ -118,7 +120,8 @@ with tab_mix:
                         "dosage_g": m_ng_liq, "dosage_liquid_pct": liq_dosage_pct,
                         "water_from_ng_g": water_from_ng, "wc_ratio": wc_ratio,
                         "water_added_g": added_water, "num_cubes": num_cubes,
-                        "casting_time": cast_time, "relative_humidity": humidity
+                        "casting_time": cast_time, "relative_humidity": humidity,
+                        "defoamer_g": defoamer_g
                     }
                     new_test = PerformanceTest(
                         batch_id=batch_select.id, test_type="Mortar", mix_design=mix_data,
