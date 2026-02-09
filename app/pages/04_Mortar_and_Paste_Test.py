@@ -4,7 +4,7 @@ import pandas as pd
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.database import get_db, init_db
-from app.models import SynthesisBatch, PerformanceTest, QCMeasurement
+from app.models import SynthesisBatch, PerformanceTest, QCMeasurement, RawMaterial
 from app.ui_utils import display_logo
 
 # Ensure database is synced
@@ -79,9 +79,25 @@ with tab_mix:
     st.markdown("---")
     
     c_m1, c_m2, c_m3 = st.columns(3)
-    cem_type = c_m1.text_input("Cement Type", value="CEM I 42.5 N Heidelberg")
+    # Fetch available cements from RawMaterial inventory
+    available_cements = db.query(RawMaterial).filter(RawMaterial.chemical_type == "Cement").all()
+    if available_cements:
+        cem_options = [f"{m.material_name} ({m.brand})" for m in available_cements]
+        cem_type = c_m1.selectbox("Cement Type", options=cem_options, key="cem_type_mix")
+    else:
+        st.warning("⚠️ No Cements found in Inventory. Please add them in the Materials page.")
+        cem_type = c_m1.text_input("Cement Type (Manual)", value="CEM I 42.5 N Heidelberg")
+    
     cem_mass = c_m2.number_input("Cement Mass [g]", min_value=0.0, value=450.0, step=1.0)
-    sand_mass = c_m3.number_input("Standard Sand [g]", min_value=0.0, value=1350.0, step=1.0)
+
+    available_sands = db.query(RawMaterial).filter(RawMaterial.chemical_type == "Sand").all()
+    if available_sands:
+        sand_options = [f"{m.material_name} ({m.lot_number})" for m in available_sands]
+        sand_type = c_m3.selectbox("Standard Sand Source", options=sand_options, key="sand_type_mix")
+        sand_mass = c_m3.number_input("Standard Sand Mass [g]", min_value=0.0, value=1350.0, step=1)
+    else:
+        sand_mass = c_m3.number_input("Standard Sand [g]", min_value=0.0, value=1350.0, step=1.0)
+        sand_type = "Standard Sand"
     
     c_m4, c_m5, c_m6, c_m7 = st.columns(4)
     sc_info = c_m4.number_input("NG Solid Content [%]", key="sc_input", format="%.2f", help="Automatically fetched from batch measurements or theoretical recipe content.")
@@ -181,7 +197,8 @@ with tab_mix:
         else:
             try:
                 mix_data = {
-                    "cement_type": cem_type, "cement_mass_g": cem_mass, "sand_mass_g": sand_mass,
+                    "cement_type": cem_type, "cement_mass_g": cem_mass, 
+                    "sand_type": sand_type, "sand_mass_g": sand_mass,
                     "target_solid_dosage_pct": target_solid_dosage, "solid_content_pct": sc_info,
                     "dosage_g": m_ng_liq, "dosage_liquid_pct": liq_dosage_pct,
                     "water_from_ng_g": water_from_ng, "wc_ratio": wc_ratio,

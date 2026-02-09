@@ -22,7 +22,10 @@ CHEMICALS = {
     "Ca(NO3)2·4H2O": {"mw": 236.15, "type": "Ca"},
     "Na2SiO3·5H2O": {"mw": 212.14, "type": "Si"},
     "NaOH": {"mw": 40.00, "type": "NaOH"},
-    "PCE": {"mw": 1.0, "type": "PCE"}
+    "PCE": {"mw": 1.0, "type": "PCE"},
+    "Cement (CEM I 42.5 N Heidelberg)": {"mw": 1.0, "type": "Cement"},
+    "Cement (CEM II 32.5 R)": {"mw": 1.0, "type": "Cement"},
+    "Standard Sand": {"mw": 1.0, "type": "Sand"}
 }
 
 tab_dash, tab1, tab2 = st.tabs(["📊 Dashboard", "🏛️ Raw Material Inventory", "🧪 Stock Solution Management"])
@@ -88,6 +91,8 @@ with tab1:
                 elif "Si" in mat_name: c_type = "Si"
                 elif "PCE" in mat_name: c_type = "PCE"
                 elif "NaOH" in mat_name: c_type = "NaOH"
+                elif "Cement" in mat_name: c_type = "Cement"
+                elif "Sand" in mat_name: c_type = "Sand"
 
                 new_mat = RawMaterial(
                     material_name=mat_name,
